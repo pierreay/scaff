@@ -5,6 +5,7 @@ import numpy as np
 from scipy import signal
 from scipy.signal import butter, lfilter
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 from scaff import log as l
 
@@ -454,6 +455,75 @@ def truncate_min(arr):
     for idx, s in enumerate(arr):
         arr[idx] = s[:target_len]
     return arr
+
+def plot_results(config, data, trigger, trigger_average, starts, traces, target_path=None, plot=True, savePlot=False, title=""):
+    plt.subplot(4, 1, 1)
+
+    t = np.linspace(0,len(data) / config.sampling_rate, len(data))
+    plt.plot(t, data)
+    plt.title(title)
+    plt.xlabel("time [s]")
+    plt.ylabel("normalized amplitude")
+   
+    plt.plot(t, trigger*100)
+    plt.axhline(y=trigger_average*100, color='y')
+    trace_length = int(config.signal_length * config.sampling_rate)
+    for start in starts:
+        stop = start + trace_length
+        plt.axvline(x=start / config.sampling_rate, color='r', linestyle='--')
+        plt.axvline(x=stop / config.sampling_rate, color='g', linestyle='--')
+
+    plt.subplot(4, 1, 2)
+    #np.set_printoptions(threshold=np.inf)
+    #print(data)
+    
+    plt.specgram(
+        data, NFFT=256, Fs=config.sampling_rate, Fc=0, noverlap=127, cmap=None, xextent=None,
+        pad_to=None, sides='default', scale_by_freq=None, mode='default',
+        scale='default')
+    plt.axhline(y=config.bandpass_lower, color='b', lw=0.2)
+    plt.axhline(y=config.bandpass_upper, color='b', lw=0.2)
+    plt.title("Spectrogram")
+    plt.xlabel("time [s]")
+    plt.ylabel("frequency [Hz]")
+
+    # plt.subplot(4, 1, 3)
+    # plt.psd(
+        # data, NFFT=1024, Fs=config.sampling_rate, Fc=0, detrend=mlab.detrend_none,
+        # window=mlab.window_hanning, noverlap=0, pad_to=None,
+        # sides='default', scale_by_freq=None, return_line=None)
+
+    if(len(traces) == 0):
+        print("WARNING: no encryption was extracted")
+    else:
+        t = np.linspace(0,len(traces[0]) / config.sampling_rate, len(traces[0]))
+        plt.subplot(4, 1, 3)
+        for trace in traces:
+            plt.plot(t, trace / max(trace))
+        plt.title("%d aligned traces" % min(config.num_traces_per_point, config.num_traces_per_point_keep))
+        plt.xlabel("time [s]")
+        plt.ylabel("normalized amplitude")
+
+        plt.subplot(4,1,4)
+        avg = np.average(traces, axis=0)
+        plt.plot(t, avg / max(avg))
+        plt.title("Average of %d traces" % min(config.num_traces_per_point, config.num_traces_per_point_keep))
+        plt.xlabel("time [s]")
+        plt.ylabel("normalized amplitude")
+
+    plt.tight_layout()
+    plt.subplots_adjust(hspace = 0.5, left=0.1)
+
+    # NOTE: Fix savefig() layout.
+    figure = plt.gcf() # Get current figure
+    figure.set_size_inches(32, 18) # Set figure's size manually to your full screen (32x18).
+
+    if savePlot and target_path != None:
+        plt.savefig(target_path + "/plot_{}.png".format(title), dpi=100, bbox_inches='tight')
+    if plot:
+        plt.show()
+
+    plt.clf()
 
 def find_starts(config, data, target_path, index):
     """

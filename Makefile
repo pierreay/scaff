@@ -3,7 +3,7 @@
 # ** Project configuration
 
 # Package name.
-PKG_NAME=soapyrx
+PKG_NAME=scaff
 
 # Package directory.
 # NOTE: This corresponds to the so-called "src" layout of Python documentation.

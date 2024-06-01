@@ -3,9 +3,112 @@ from enum import Enum
 
 import numpy as np
 from scipy import signal
+from scipy.signal import butter, lfilter
 from tqdm import tqdm
 
-from soapyrx import log as l
+from scaff import log as l
+
+def butter_highpass(cutoff, fs, order=5):
+    nyq = 0.5 * fs
+    normal_cutoff = cutoff / nyq
+    b, a = butter(order, normal_cutoff, btype="high", analog=False)
+    return b, a
+
+def butter_highpass_filter(data, cutoff, fs, order=5):
+    assert(cutoff < fs / 2) # Nyquist
+    b, a = butter_highpass(cutoff, fs, order=order)
+    y = lfilter(b, a, data)
+    return y
+
+def butter_lowpass(cutoff, fs, order=5):
+    nyq = 0.5 * fs
+    normal_cutoff = cutoff / nyq
+    b, a = butter(order, normal_cutoff, btype="low", analog=False)
+    return b, a
+
+def butter_lowpass_filter(data, cutoff, fs, order=5):
+    assert(cutoff < fs / 2) # Nyquist
+    b, a = butter_lowpass(cutoff, fs, order=order)
+    y = lfilter(b, a, data)
+    return y
+
+def butter_bandpass(lowcut, highcut, fs, order=5):
+    nyq = 0.5 * fs
+    low = lowcut / nyq
+    high = highcut / nyq
+    b, a = butter(order, [low, high], btype="band")
+    return b, a
+
+def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
+    assert(lowcut < fs / 2 and highcut < fs / 2) # Nyquist
+    assert(lowcut < highcut)                     # Logic
+    b, a = butter_bandpass(lowcut, highcut, fs, order=order)
+    y = lfilter(b, a, data)
+    return y
+
+def get_shift_corr(arr_1, arr_2):
+    """Get the shift maximizing cross-correlation between arr_1 and arr_2."""
+    corr = signal.correlate(arr_1, arr_2)
+    return np.argmax(corr) - (len(arr_2) - 1)
+
+def align(template, target, sr, ignore=True, log=False, get_shift_only=False, normalize=False):
+    """Align a signal against a template.
+
+    Return the TARGET signal aligned (1D np.array) using cross-correlation
+    along the TEMPLATE signal, where SR is the sampling rates of signals. The
+    shift is filled with zeros shuch that shape is not modified.
+
+    - If IGNORE is set to false, raise an assertion for high shift values.
+    - If LOG is set to True, log the shift produced by the cross-correlation.
+
+    NOTE: The cross-correlation shift is computed based on amplitude
+    (np.float64) of signals.
+
+    """
+    # +++===+++++++++
+    # +++++++===+++++ -> shift > 0 -> shift left target -> shrink template from right or pad target to right
+    # ===++++++++++++ -> shift < 0 -> shift right target -> shrink template from left or pad target to left
+    # Safety-check to prevent weird exception inside the function.
+    assert template.shape > (1,) and target.shape > (1,), "Cannot align empty traces!"
+    # NOTE: Disabled this assertation because I'm not sure why it was necessary.
+    # assert template.shape == target.shape, "Traces to align should have the same length!"
+    assert template.ndim == 1 and target.ndim == 1, "Traces to align should be 1D-ndarray!"
+    # Compute the cross-correlation and find shift across amplitude.
+    lpf_freq     = sr / 4
+    template_lpf = filters.butter_lowpass_filter(get_amplitude(template), lpf_freq, sr)
+    target_lpf   = filters.butter_lowpass_filter(get_amplitude(target), lpf_freq, sr)
+    if normalize is True:
+        template_lpf = analyze.normalize(template_lpf)
+        target_lpf = analyze.normalize(target_lpf)
+    shift        = analyze.get_shift_corr(target_lpf, template_lpf)
+    if get_shift_only is True:
+        return shift
+    # Log and check shift value.
+    if log:
+        l.LOGGER.debug("Shift to maximize cross correlation: {}".format(shift))
+    if not ignore:
+        assert np.abs(shift) < len(template/10), "shift is too high, inspect"
+    # Apply shift on the raw target signal.
+    return analyze.shift(target, shift)
+
+def align_nb(s, nb, sr, template, tqdm_log=True):
+    s_aligned = [0] * nb
+    if tqdm_log:
+        lrange = tqdm(range(0, nb), desc="Align")
+    else:
+        lrange = list(range(0, nb))
+    for idx in lrange:
+        s_aligned[idx] = align(template, s[idx], sr)
+    s_aligned = np.array(s_aligned, dtype=s.dtype)
+    return s_aligned
+
+def align_all(s, sr, template=None, tqdm_log=True):
+    """Align the signals contained in the S 2D np.array of sampling rate
+    SR. Use TEMPLATE signal (1D np.array) as template/reference signal if
+    specified, otherwise use the first signal of the S array.
+
+    """
+    return align_nb(s, len(s), sr, template if template is not None else s[0], tqdm_log)
 
 # Enumeration of components type of a signal.
 CompType = Enum('CompType', ['AMPLITUDE', 'PHASE', 'PHASE_ROT'])

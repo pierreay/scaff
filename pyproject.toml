@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 # Project metadata configuration.
 [project]
-name = "soapyrx"
+name = "scaff"
 version = "0.0.1"
 dependencies = [
     "numpy",
@@ -13,13 +13,14 @@ dependencies = [
     "matplotlib",
     "click",
     "colorlog",
+    "tqdm",
 ]
 
 # Scripts configuration.
 [project.scripts]
-# Will create a "soapyrx" Bash script targeting the "soapyrx" package, "mymod"
+# Will create a "scaff" Bash script targeting the "scaff" package, "mymod"
 # module, "main()" function.
-soapyrx = "soapyrx.cli:cli"
+scaff = "scaff.attack:cli"
 
 # Package layout.
 # NOTE: Disabling the following options will enable the automatic package

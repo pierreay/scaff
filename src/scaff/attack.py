@@ -4,10 +4,8 @@ import click
 import numpy as np
 from matplotlib import pyplot as plt
 
-import lib.log as ll
-import lib.load as load
-import lib.analyze as analyze
-import lib.utils as utils
+from scaff import log as ll
+from scaff import analyze
 
 SMALL_SIZE = 8*4
 MEDIUM_SIZE = 10*4
@@ -32,11 +30,6 @@ import binascii
 import math
 import statsmodels.api as sm
 from sklearn.feature_selection import mutual_info_classif
-
-try:
-    from .load import generic_load
-except:
-    from load import generic_load
 
 # Configuration that applies to all attacks; set by the script entry point (cli()).
 # Plus other global variables
@@ -89,6 +82,91 @@ AVERAGE = None
 NORM = None
 NORM2 = None
 MIMO = None
+
+# Smart loading of the traces from files
+# 1. Discard empty traces (errors occurred during collection)
+# 1. Apply pre-processing techniques
+# 2. Keep all the traces in a batch or average them (if they were collected with
+#    the keep-all option. 
+def generic_load(data_path,name,number,wstart=0,wend=0, average=True,
+                 norm=False, norm2=False, mimo="", comp="amp"):
+    """
+    Function that loads plainext, key(s), and (raw) traces.
+    """
+
+    empty = 0
+    p = load_all(path.join(data_path, 'pt_%s.txt' % name), number)
+    k = load_all(path.join(data_path, 'key_%s.txt' % name), number)
+    fixed_key = False
+    if len(k) == 1:
+        fixed_key = True
+    
+    fixed_plaintext = False
+    if len(p) == 1:
+        fixed_plaintext = True
+
+    plaintexts = []
+    keys = []
+    traces = []
+
+    if mimo != "":
+        name = name + "_" + mimo
+ 
+    for i in range(number):
+        # read average or raw traces from file
+        raw_traces = np.load(
+                path.join(data_path, '%s_%s_%d.npy' % (comp, name, i))
+        )
+
+        if np.shape(raw_traces) == () or not raw_traces.any():
+            print("WARN: Empty trace: #{}".format(i))
+            empty += 1
+            continue
+
+        # if average, transform into array with one element
+        # if len(np.shape(raw_traces)) == 1:
+        raw_traces = [raw_traces]
+
+        if wend != 0:
+            raw_traces = np.asarray(raw_traces)[:,wstart:wend]
+
+        if average:
+            # if raw_traces[0].all() == 0:
+                # continue
+            # print type(raw_traces)
+            avg = np.average(raw_traces, axis=0)
+            avg = pre_process(avg, norm)
+            traces.append(avg)
+            if fixed_plaintext:
+                plaintexts.append(p[0])
+            else:
+                plaintexts.append(p[i])
+            if fixed_key:
+                keys.append(k[0])
+            else:
+                keys.append(k[i])
+        else:
+            # iterate over traces
+            for trace in raw_traces:
+                if trace.all() == 0:
+                    continue
+                trace = pre_process(trace, norm)
+                traces.append(trace)
+                plaintexts.append(p[i])
+                if fixed_key:
+                    keys.append(k[0])
+                else:
+                    keys.append(k[i])
+    print("INFO: Number of empty traces: {}".format(empty))
+    traces = np.asarray(traces)
+
+    # Apply z-score normalization on the set
+    if norm2:
+        mu = np.average(traces, axis=0)
+        std = np.std(traces, axis=0)
+        traces = (traces - mu) / std
+
+    return fixed_key, plaintexts, keys, traces
 
 @click.group()
 @click.option("--data-path", type=click.Path(exists=True, file_okay=False),
@@ -198,11 +276,15 @@ sbox=(
 def intermediate(pt, keyguess):
     return sbox[pt ^ keyguess]
 
+def hamd(n, m):
+    """Return the Hamming Distance between numbers N and M."""
+    return hamw(n ^ m)
+
 # NOTE: Set "flush=True" for all "print()" calls in this function, otherwise,
 # the result using grep and tee in bash script is unreliable.
 def print_result(bestguess,knownkey,pge):
     # Hamming distance between all known subkeys and best guess subkeys.
-    hd = [utils.hamd(g, k) for g, k in zip(bestguess, knownkey)]
+    hd = [hamd(g, k) for g, k in zip(bestguess, knownkey)]
 
     print("Best Key Guess: ", end=' ', flush=True)
     for b in bestguess: print(" %02x "%b, end=' ')

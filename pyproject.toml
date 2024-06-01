@@ -1,0 +1,29 @@
+# Build system configuration.
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+# Project metadata configuration.
+[project]
+name = "soapyrx"
+version = "0.0.1"
+dependencies = [
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "click",
+    "colorlog",
+]
+
+# Scripts configuration.
+[project.scripts]
+# Will create a "soapyrx" Bash script targeting the "soapyrx" package, "mymod"
+# module, "main()" function.
+soapyrx = "soapyrx.cli:cli"
+
+# Package layout.
+# NOTE: Disabling the following options will enable the automatic package
+# discovery of Setuptools. In this project, we use the "src" layout.
+# See: https://setuptools.pypa.io/en/latest/userguide/package_discovery.html
+# [options]
+# packages = mypkg

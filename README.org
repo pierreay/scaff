@@ -1,0 +1,20 @@
+* SoapyRX
+
+An SDR receiver built on [[https://github.com/pothosware/SoapySDR/wiki][SoapySDR]].
+
+* Installation
+
+Installable using [[https://pypi.org/project/pip/][Pip]]:
+
+#+begin_src bash :eval never
+git clone https://github.com/pierreay/soapyrx.git
+cd soapyrx && pip install --user .
+#+end_src
+
+* Usage
+
+TODO: Usage demonstration.
+
+* Files
+
+TODO: Link to main files.

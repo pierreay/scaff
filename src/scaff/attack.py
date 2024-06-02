@@ -85,6 +85,30 @@ NORM = None
 NORM2 = None
 MIMO = None
 
+# Per-trace pre-processing:
+# 1. z-score normalization
+def pre_process(trace, norm):
+    if norm:
+        mu = np.average(trace)
+        std = np.std(trace)
+        if std != 0:
+            trace = (trace - mu) / std
+    return trace
+
+# Load all plaintexts and key(s) from the respective files
+def load_all(filename, number=0):
+    with open(filename, "r") as f:
+        if number == 0:
+            data = f.read()
+        else:
+            data = ''
+            for i in range(0, number):
+                data += f.readline()
+            if data[len(data)-1] == '\n':
+                 data = data[0:len(data)-1]
+    return [[int(c) for c in bytearray.fromhex(line)]
+            for line in data.split('\n')]
+
 # Smart loading of the traces from files
 # 1. Discard empty traces (errors occurred during collection)
 # 1. Apply pre-processing techniques
@@ -277,6 +301,12 @@ sbox=(
 
 def intermediate(pt, keyguess):
     return sbox[pt ^ keyguess]
+
+def hamw(n):
+    """Return the Hamming Weight of the number N."""
+    # NOTE: Alternative implementation using str built-in class.
+    # return bin(n).count("1")
+    return int(n).bit_count()
 
 def hamd(n, m):
     """Return the Hamming Distance between numbers N and M."""

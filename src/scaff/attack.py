@@ -500,11 +500,15 @@ def estimate_test():
 # values predicted by the profile (and also compute the p-value)
 def estimate_rf_pf(fold):
     global RF, PF
-    for bnum in range(NUM_KEY_BYTES):
-        for i in range(len(TRACES[0])):
-            r,p = pearsonr(TRACES_TEST[:, i], MEANS_TEST[bnum][:, i])
-            RF[bnum][fold][i] = r
-            PF[bnum][fold][i] = p
+    try:
+        for bnum in range(NUM_KEY_BYTES):
+            for i in range(len(TRACES[0])):
+                r,p = pearsonr(TRACES_TEST[:, i], MEANS_TEST[bnum][:, i])
+                RF[bnum][fold][i] = r
+                PF[bnum][fold][i] = p
+    except ValueError as e:
+        ll.LOGGER.error("Cannot compute PCC: {}".format(e))
+        raise Exception("Not enough traces to find corelations!")
 
 # Average the results from k different choices of the test set among the k-folds
 def average_folds():
@@ -1123,7 +1127,10 @@ def profile(variable, lr_type, pois_algo, k_fold, num_pois, poi_spacing, pois_di
     compute_variables(variable)
     classify()
     estimate()
-    find_pois(pois_algo, k_fold, num_pois, poi_spacing, template_dir)
+    try:
+        find_pois(pois_algo, k_fold, num_pois, poi_spacing, template_dir)
+    except Exception as e:
+        ll.LOGGER.error("Cannot find POIs: {}".format(e))
     build_profile(variable, template_dir)
     fit(lr_type, variable)
     save_profile(template_dir)

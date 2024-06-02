@@ -47,6 +47,24 @@ def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
     y = lfilter(b, a, data)
     return y
 
+def shift(sig, val):
+    """Shift a signal SIG from the VAL offset.
+
+    Shift a signal SIG to left (positive VAL) or right (negative
+    VAL). Empty parts of the signal are completed using np.zeros of same
+    dtype as SIG.
+
+    VAL can be the output of the signal.correlate() function.
+
+    """
+    if val > 0:
+        sig = sig[val:]
+        sig = np.append(sig, np.zeros(val, dtype=sig.dtype))
+    elif val < 0:
+        sig = sig[:val]
+        sig = np.insert(sig, 0, np.zeros(-val, dtype=sig.dtype))
+    return sig
+
 def get_shift_corr(arr_1, arr_2):
     """Get the shift maximizing cross-correlation between arr_1 and arr_2."""
     corr = signal.correlate(arr_1, arr_2)
@@ -76,21 +94,21 @@ def align(template, target, sr, ignore=True, log=False, get_shift_only=False, no
     assert template.ndim == 1 and target.ndim == 1, "Traces to align should be 1D-ndarray!"
     # Compute the cross-correlation and find shift across amplitude.
     lpf_freq     = sr / 4
-    template_lpf = filters.butter_lowpass_filter(get_amplitude(template), lpf_freq, sr)
-    target_lpf   = filters.butter_lowpass_filter(get_amplitude(target), lpf_freq, sr)
+    template_lpf = butter_lowpass_filter(get_amplitude(template), lpf_freq, sr)
+    target_lpf   = butter_lowpass_filter(get_amplitude(target), lpf_freq, sr)
     if normalize is True:
-        template_lpf = analyze.normalize(template_lpf)
-        target_lpf = analyze.normalize(target_lpf)
-    shift        = analyze.get_shift_corr(target_lpf, template_lpf)
+        template_lpf = normalize(template_lpf)
+        target_lpf = normalize(target_lpf)
+    shiftv        = get_shift_corr(target_lpf, template_lpf)
     if get_shift_only is True:
-        return shift
+        return shiftv
     # Log and check shift value.
     if log:
-        l.LOGGER.debug("Shift to maximize cross correlation: {}".format(shift))
+        l.LOGGER.debug("Shift to maximize cross correlation: {}".format(shiftv))
     if not ignore:
-        assert np.abs(shift) < len(template/10), "shift is too high, inspect"
+        assert np.abs(shiftv) < len(template/10), "shift is too high, inspect"
     # Apply shift on the raw target signal.
-    return analyze.shift(target, shift)
+    return shift(target, shiftv)
 
 def align_nb(s, nb, sr, template, tqdm_log=True):
     s_aligned = [0] * nb

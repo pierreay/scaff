@@ -625,7 +625,7 @@ def find_starts(config, data, target_path, index):
 # The code below contains a few hacks to deal with all possible errors we
 # encountered with different radios and setups. It is not very clean but it is
 # quite stable.
-def extract(capture_file, config, average_file_name=None, plot=False, target_path=None, savePlot=False, index=0, return_zero=True):
+def extract(data, config, average_file_name=None, plot=False, target_path=None, savePlot=False, index=0, return_zero=True):
     """Post-process a GNUradio capture to get a clean and well-aligned trace.
 
     The configuration is a reproduce.AnalysisConfig tuple. The optional
@@ -636,9 +636,6 @@ def extract(capture_file, config, average_file_name=None, plot=False, target_pat
     traces.
 
     """
-    # Load data from custom dtype.
-    data = np.load(capture_file)
-
     # assert len(data) != 0, "ERROR, empty data just after measuring"
     if len(data) == 0:
         print("Warning! empty data, replacing with zeros")

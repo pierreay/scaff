@@ -718,7 +718,7 @@ def extract(data, config, average_file_name=None, plot=False, target_path=None, 
     traces_i_augmented = []
     traces_q_augmented = []
     trace_length = int(config.signal_length * config.sampling_rate)
-    print("INFO: Number of starts: {}".format(len(trace_starts)))
+    l.LOGGER.info("Number of starts: {}".format(len(trace_starts)))
     for start_idx, start in enumerate(trace_starts):
         if len(traces_amp) >= min(config.num_traces_per_point, config.num_traces_per_point_keep):
             break
@@ -738,9 +738,9 @@ def extract(data, config, average_file_name=None, plot=False, target_path=None, 
         template_lpf = butter_lowpass_filter(template, config.sampling_rate / 4,
                 config.sampling_rate)
         correlation = signal.correlate(trace_lpf**2, template_lpf**2)
-        print("INFO: corr={}".format(max(correlation)))
+        l.LOGGER.debug("corr={}".format(max(correlation)))
         if max(correlation) <= config.min_correlation:
-            print("WARN: Skip trace start: corr={} <= corr_min={}".format(max(correlation), config.min_correlation))
+            l.LOGGER.warn("WARN: Skip trace start: corr={} <= corr_min={}".format(max(correlation), config.min_correlation))
             continue
 
         shift = np.argmax(correlation) - (len(template)-1)

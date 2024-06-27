@@ -9,65 +9,60 @@ import colorlog
 
 # * Objects
 
-# Logger used accross all modules.
+# Logger and its handler used accross all modules.
 LOGGER = None
+HANDLER_INF = None
+HANDLER_DBG = None
 
 # * Constants
 
 # Default logging level.
-LOGGER_DEFAULT_LEVEL = "DEBUG"
+LEVEL_DEFAULT = "INFO"
+# Formatters depending on level.
+FORMAT_INF = "%(log_color)s[%(levelname)s] %(message)s"
+FORMAT_DBG = "%(log_color)s[%(asctime)s] [%(process)d] [%(threadName)s] [%(module)s] [%(levelname)s] %(message)s"
 
 # * Functions
 
-def log_n_exit(str, code, e=None, traceback=True):
-    """Log a critical error and exit.
+def _set_level(level):
+    """Set logging level.
 
-    :param str: Log message.
-    :param code: Exit code.
-    :param e: Exception object.
+    :param level: String or logging level object.
 
     """
-    assert LOGGER, "No initialized logger"
-    if e:
-        LOGGER.critical(e, exc_info=traceback, stack_info=traceback)
-    LOGGER.critical(str)
-    exit(code)
-
-def set_level(level):
-    """Set the logger of the logging system to LEVEL (string or logging
-    levels).
-
-    """
+    LOGGER.removeHandler(HANDLER_INF)
+    LOGGER.removeHandler(HANDLER_DBG)
+    if level == "DEBUG":
+        LOGGER.addHandler(HANDLER_DBG)
+    else:
+        LOGGER.addHandler(HANDLER_INF)
     LOGGER.setLevel(level)
 
-def disable():
-    """Disable the logging messages."""
+def _disable():
+    """Disable logging messages."""
     set_level(logging.CRITICAL + 1)
 
-def init(level):
-    """Initialize the logging system.
-
-    Initialize the stream type (stderr) and the logging format depending on the
-    later in the global LOGGER variable, alert program start.
-
-    """
-    global LOGGER
+def init(level=LEVEL_DEFAULT):
+    """Initialize the logging system."""
+    global LOGGER, HANDLER_INF, HANDLER_DBG
     if LOGGER is None:
-        handler = colorlog.StreamHandler()
-        format = "%(log_color)s{}%(levelname)-5s - %(message)s".format("[%(asctime)s] [%(process)d] [%(threadName)s] [%(module)s] " if level == "DEBUG" else "")
-        formatter = colorlog.ColoredFormatter(format)
         LOGGER = colorlog.getLogger(__name__)
-        handler.setFormatter(formatter)
+        HANDLER_INF = colorlog.StreamHandler()
+        HANDLER_DBG = colorlog.StreamHandler()
+        HANDLER_INF.setFormatter(colorlog.ColoredFormatter(FORMAT_INF))
+        HANDLER_DBG.setFormatter(colorlog.ColoredFormatter(FORMAT_DBG))
         LOGGER.propagate = False # We want a custom handler and don't want its
                                  # messages also going to the root handler.
-        LOGGER.setLevel(level)
-        LOGGER.addHandler(handler)
+        _set_level(level)
+        LOGGER.debug("Logger initialized: {}".format(__name__))
 
-def configure(enable=True, level=LOGGER_DEFAULT_LEVEL):
-    """Configure the logging system after init()."""
-    set_level(level)
+def configure(enable=True, level=LEVEL_DEFAULT):
+    """Re-configure the logging system after being initialized()."""
+    _set_level(level)
     if enable is False:
-        disable()
+        _disable()
 
-# Initialized at import time.
-init(LOGGER_DEFAULT_LEVEL)
+# * Script
+
+# Initialize the module at importation time.
+init(LEVEL_DEFAULT)

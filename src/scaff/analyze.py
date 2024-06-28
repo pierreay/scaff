@@ -618,21 +618,12 @@ def find_starts(config, data, target_path, index):
 # The code below contains a few hacks to deal with all possible errors we
 # encountered with different radios and setups. It is not very clean but it is
 # quite stable.
-def extract(data, config, average_file_name=None, plot=False, target_path=None, savePlot=False, index=0, return_zero=True):
-    """Post-process a GNUradio capture to get a clean and well-aligned trace.
-
-    The configuration is a reproduce.AnalysisConfig tuple. The optional
-    average_file_name specifies the file to write the average to (i.e. the
-    template candidate).
-
-    Return a tuple composed of the extracted amplitude and phase rotation
-    traces.
+def extract(data, config, average_file_name=None, plot=False, target_path=None, savePlot=False, index=0):
+    """Post-process a radio capture to get a clean and well-aligned trace.
 
     """
     if len(data) == 0:
-        l.LOGGER.warn("Empty data, replacing with zeros!")
-        template = np.load(config["scaff"]["template_name"])
-        return np.zeros(len(template)), np.zeros(len(template))
+        raise Exception("Empty data!")
 
     template = np.load(config["scaff"]["template_name"]) if config["scaff"]["template_name"] else None
 
@@ -646,25 +637,12 @@ def extract(data, config, average_file_name=None, plot=False, target_path=None, 
 
     # assert len(data) != 0, "ERROR, empty data after drop_start"
     if len(data) == 0:
-       l.LOGGER.warn("Empty data after drop start, replacing with zeros!")
-       template = np.load(config["scaff"]["template_name"])
-       return np.zeros(len(template)), np.zeros(len(template))
+        raise Exception("Empty data after drop start!")
 
     # AMPlitude
     data_amp = np.absolute(data)
     # PHase Rotation
     data_phr = get_phase_rot(data)
-    # I
-    data_i = np.real(data)
-    # Q
-    data_q = np.imag(data)
-
-    # Compute augmented I/Q.
-    data_augmented = data_amp * np.exp(1j * data_phr)
-    # I from augmented IQ.
-    data_i_augmented = np.real(data_augmented)
-    # Q from augmented IQ.
-    data_q_augmented = np.imag(data_augmented)
 
     #TOM ADDITION START
     #plt.clf()
@@ -681,10 +659,6 @@ def extract(data, config, average_file_name=None, plot=False, target_path=None, 
     # extract at trigger + autocorrelate with the first to align
     traces_amp = []
     traces_phr = []
-    traces_i = []
-    traces_q = []
-    traces_i_augmented = []
-    traces_q_augmented = []
     trace_length = int(config["scaff"]["signal_length"] * config["soapyrx"]["sampling_rate"])
     l.LOGGER.info("Number of starts: {}".format(len(trace_starts)))
     for start_idx, start in enumerate(trace_starts):
@@ -714,47 +688,24 @@ def extract(data, config, average_file_name=None, plot=False, target_path=None, 
         shift = np.argmax(correlation) - (len(template)-1)
         traces_amp.append(data_amp[start+shift:stop+shift])
         traces_phr.append(data_phr[start+shift:stop+shift])
-        traces_i.append(data_i[start+shift:stop+shift])
-        traces_q.append(data_q[start+shift:stop+shift])
-        traces_i_augmented.append(data_i_augmented[start+shift:stop+shift])
-        traces_q_augmented.append(data_q_augmented[start+shift:stop+shift])
 
     avg_amp = np.average(traces_amp, axis=0)
     avg_phr = np.average(traces_phr, axis=0)
-    avg_i = np.average(traces_i, axis=0)
-    avg_q = np.average(traces_q, axis=0)
-    avg_i_augmented = np.average(traces_i_augmented, axis=0)
-    avg_q_augmented = np.average(traces_q_augmented, axis=0)
-
-    if return_zero is True and (
-            (np.shape(avg_amp) == () or np.shape(avg_phr) == ()
-             or np.shape(avg_i) == () or np.shape(avg_q) == ()
-             or np.shape(avg_i_augmented) == () or np.shape(avg_q_augmented) == ())
-    ):
-        return np.zeros(len(template)), np.zeros(len(template)), np.zeros(len(template)), np.zeros(len(template)), np.zeros(len(template)), np.zeros(len(template))
-    elif return_zero is False and (
-            (np.shape(avg_amp) == () or np.shape(avg_phr) == ()
-             or np.shape(avg_i) == () or np.shape(avg_q) == ()
-             or np.shape(avg_i_augmented) == () or np.shape(avg_q_augmented) == ())
-    ):
-        if plot or savePlot:
-            plot_results(config, data_amp, trigger, trigger_avg, trace_starts, traces_amp, target_path, plot, savePlot, "amp", final=False)
-            plot_results(config, data_phr, trigger, trigger_avg, trace_starts, traces_phr, target_path, plot, savePlot, "phr", final=True)
-        raise Exception("Trigger or correlation configuration excluded all starts!")
-
-    if average_file_name:
-        np.save(average_file_name, avg_amp)
 
     if plot or savePlot:
         plot_results(config, data_amp, trigger, trigger_avg, trace_starts, traces_amp, target_path, plot, savePlot, "amp", final=False)
         plot_results(config, data_phr, trigger, trigger_avg, trace_starts, traces_phr, target_path, plot, savePlot, "phr", final=True)
 
-    std = np.std(traces_amp,axis=0)
+    if (np.shape(avg_amp) == () or np.shape(avg_phr) == ()):
+        raise Exception("Trigger or correlation configuration excluded all starts!")
+    elif average_file_name:
+        np.save(average_file_name, avg_amp)
 
+    std = np.std(traces_amp,axis=0)
     l.LOGGER.info("Extraction summary: ")
     l.LOGGER.info("Number = {}".format(len(traces_amp)))
     l.LOGGER.info("avg[Max(std)] = {:.2E}".format(avg_amp[std.argmax()]))
     l.LOGGER.info("Max(u) = Max(std) = {:.2E}".format(max(std)))
     l.LOGGER.info("Max(u_rel) = {:.2E} percentage".format(100*max(std)/avg_amp[std.argmax()]))
 
-    return data, avg_amp, avg_phr, avg_i, avg_q, avg_i_augmented, avg_q_augmented
+    return data, avg_amp, avg_phr

@@ -786,7 +786,4 @@ def extract(data, config, average_file_name=None, plot=False, target_path=None, 
     l.LOGGER.info("Max(u) = Max(std) = {:.2E}".format(max(std)))
     l.LOGGER.info("Max(u_rel) = {:.2E} percentage".format(100*max(std)/avg_amp[std.argmax()]))
 
-    if config["scaff"]["keep_all"]:
-        return traces_amp
-    else:
-        return avg_amp, avg_phr, avg_i, avg_q, avg_i_augmented, avg_q_augmented
+    return data, avg_amp, avg_phr, avg_i, avg_q, avg_i_augmented, avg_q_augmented

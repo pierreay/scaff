@@ -632,13 +632,6 @@ def extract(data, config, average_file_name=None, plot=False, target_path=None, 
         l.LOGGER.warn("Template length doesn't match collection parameters. "
               "Is this the right template?")
 
-    # cut usless transient
-    data = data[int(config["scaff"]["drop_start"] * config["soapyrx"]["sampling_rate"]):]
-
-    # assert len(data) != 0, "ERROR, empty data after drop_start"
-    if len(data) == 0:
-        raise Exception("Empty data after drop start!")
-
     # AMPlitude
     data_amp = np.absolute(data)
     # PHase Rotation

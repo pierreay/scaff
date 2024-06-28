@@ -474,8 +474,9 @@ def truncate_min(arr):
         arr[idx] = s[:target_len]
     return arr
 
-def plot_results(config, data, trigger, trigger_average, starts, traces, target_path=None, plot=True, savePlot=False, title=""):
-    plt.subplot(4, 1, 1)
+def plot_results(config, data, trigger, trigger_average, starts, traces, target_path=None, plot=True, savePlot=False, title="", final=True):
+    index_base = 1 if final is False else 2
+    plt.subplot(4, 2, index_base)
 
     t = np.linspace(0,len(data) / config["soapyrx"]["sampling_rate"], len(data))
     plt.plot(t, data)
@@ -491,7 +492,7 @@ def plot_results(config, data, trigger, trigger_average, starts, traces, target_
         plt.axvline(x=start / config["soapyrx"]["sampling_rate"], color='r', linestyle='--')
         plt.axvline(x=stop / config["soapyrx"]["sampling_rate"], color='g', linestyle='--')
 
-    plt.subplot(4, 1, 2)
+    plt.subplot(4, 2, index_base + 2)
     
     plt.specgram(
         data, NFFT=256, Fs=config["soapyrx"]["sampling_rate"], Fc=0, noverlap=127, cmap=None, xextent=None,
@@ -503,43 +504,38 @@ def plot_results(config, data, trigger, trigger_average, starts, traces, target_
     plt.xlabel("time [s]")
     plt.ylabel("frequency [Hz]")
 
-    # plt.subplot(4, 1, 3)
-    # plt.psd(
-        # data, NFFT=1024, Fs=config["soapyrx"]["sampling_rate"], Fc=0, detrend=mlab.detrend_none,
-        # window=mlab.window_hanning, noverlap=0, pad_to=None,
-        # sides='default', scale_by_freq=None, return_line=None)
-
     if(len(traces) == 0):
         l.LOGGER.warn("No encryption was extracted!")
     else:
         t = np.linspace(0,len(traces[0]) / config["soapyrx"]["sampling_rate"], len(traces[0]))
-        plt.subplot(4, 1, 3)
+        plt.subplot(4, 2, index_base + 4)
         for trace in traces:
             plt.plot(t, trace / max(trace))
-        plt.title("%d aligned traces" % min(config["fw"]["num_traces_per_point"], config["fw"]["num_traces_per_point_min"]))
+        plt.title("{} aligned traces".format(len(starts)))
         plt.xlabel("time [s]")
         plt.ylabel("normalized amplitude")
 
-        plt.subplot(4,1,4)
+        plt.subplot(4, 2, index_base + 6)
         avg = np.average(traces, axis=0)
         plt.plot(t, avg / max(avg))
-        plt.title("Average of %d traces" % min(config["fw"]["num_traces_per_point"], config["fw"]["num_traces_per_point_min"]))
+        plt.title("Average of {} traces".format(len(starts)))
         plt.xlabel("time [s]")
         plt.ylabel("normalized amplitude")
 
-    plt.tight_layout()
-    plt.subplots_adjust(hspace = 0.5, left=0.1)
+    if final is True:
+        plt.tight_layout()
+        plt.subplots_adjust(hspace = 0.5, left = 0.1)
 
-    # NOTE: Fix savefig() layout.
-    figure = plt.gcf() # Get current figure
-    figure.set_size_inches(32, 18) # Set figure's size manually to your full screen (32x18).
+        # NOTE: Fix savefig() layout.
+        figure = plt.gcf() # Get current figure
+        figure.set_size_inches(32, 18) # Set figure's size manually to your full screen (32x18).
 
-    if savePlot and target_path != None:
-        plt.savefig(target_path + "/plot_{}.png".format(title), dpi=100, bbox_inches='tight')
-    if plot:
-        plt.show()
+        if savePlot and target_path != None:
+            plt.savefig(target_path + "/plot_{}.png".format(title), dpi=100, bbox_inches='tight')
+        if plot:
+            plt.show()
 
-    plt.clf()
+        plt.clf()
 
 def find_starts(config, data, target_path, index):
     """
@@ -767,16 +763,16 @@ def extract(data, config, average_file_name=None, plot=False, target_path=None, 
              or np.shape(avg_i_augmented) == () or np.shape(avg_q_augmented) == ())
     ):
         if plot or savePlot:
-            plot_results(config, data_amp, trigger, trigger_avg, trace_starts, traces_amp, target_path, plot, savePlot, "amp")
-            plot_results(config, data_phr, trigger, trigger_avg, trace_starts, traces_phr, target_path, plot, savePlot, "phr")
+            plot_results(config, data_amp, trigger, trigger_avg, trace_starts, traces_amp, target_path, plot, savePlot, "amp", final=False)
+            plot_results(config, data_phr, trigger, trigger_avg, trace_starts, traces_phr, target_path, plot, savePlot, "phr", final=True)
         raise Exception("Trigger or correlation configuration excluded all starts!")
 
     if average_file_name:
         np.save(average_file_name, avg_amp)
 
     if plot or savePlot:
-        plot_results(config, data_amp, trigger, trigger_avg, trace_starts, traces_amp, target_path, plot, savePlot, "amp")
-        plot_results(config, data_phr, trigger, trigger_avg, trace_starts, traces_phr, target_path, plot, savePlot, "phr")
+        plot_results(config, data_amp, trigger, trigger_avg, trace_starts, traces_amp, target_path, plot, savePlot, "amp", final=False)
+        plot_results(config, data_phr, trigger, trigger_avg, trace_starts, traces_phr, target_path, plot, savePlot, "phr", final=True)
 
     std = np.std(traces_amp,axis=0)
 

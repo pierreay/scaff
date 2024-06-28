@@ -477,7 +477,7 @@ def truncate_min(arr):
 def plot_results(config, data, trigger, trigger_average, starts, traces, target_path=None, plot=True, savePlot=False, title=""):
     plt.subplot(4, 1, 1)
 
-    t = np.linspace(0,len(data) / config.sampling_rate, len(data))
+    t = np.linspace(0,len(data) / config["soapyrx"]["sampling_rate"], len(data))
     plt.plot(t, data)
     plt.title(title)
     plt.xlabel("time [s]")
@@ -485,45 +485,45 @@ def plot_results(config, data, trigger, trigger_average, starts, traces, target_
    
     plt.plot(t, trigger*100)
     plt.axhline(y=trigger_average*100, color='y')
-    trace_length = int(config.signal_length * config.sampling_rate)
+    trace_length = int(config["scaff"]["signal_length"] * config["soapyrx"]["sampling_rate"])
     for start in starts:
         stop = start + trace_length
-        plt.axvline(x=start / config.sampling_rate, color='r', linestyle='--')
-        plt.axvline(x=stop / config.sampling_rate, color='g', linestyle='--')
+        plt.axvline(x=start / config["soapyrx"]["sampling_rate"], color='r', linestyle='--')
+        plt.axvline(x=stop / config["soapyrx"]["sampling_rate"], color='g', linestyle='--')
 
     plt.subplot(4, 1, 2)
     
     plt.specgram(
-        data, NFFT=256, Fs=config.sampling_rate, Fc=0, noverlap=127, cmap=None, xextent=None,
+        data, NFFT=256, Fs=config["soapyrx"]["sampling_rate"], Fc=0, noverlap=127, cmap=None, xextent=None,
         pad_to=None, sides='default', scale_by_freq=None, mode='default',
         scale='default')
-    plt.axhline(y=config.bandpass_lower, color='b', lw=0.2)
-    plt.axhline(y=config.bandpass_upper, color='b', lw=0.2)
+    plt.axhline(y=config["scaff"]["bandpass_lower"], color='b', lw=0.2)
+    plt.axhline(y=config["scaff"]["bandpass_upper"], color='b', lw=0.2)
     plt.title("Spectrogram")
     plt.xlabel("time [s]")
     plt.ylabel("frequency [Hz]")
 
     # plt.subplot(4, 1, 3)
     # plt.psd(
-        # data, NFFT=1024, Fs=config.sampling_rate, Fc=0, detrend=mlab.detrend_none,
+        # data, NFFT=1024, Fs=config["soapyrx"]["sampling_rate"], Fc=0, detrend=mlab.detrend_none,
         # window=mlab.window_hanning, noverlap=0, pad_to=None,
         # sides='default', scale_by_freq=None, return_line=None)
 
     if(len(traces) == 0):
         l.LOGGER.warn("No encryption was extracted!")
     else:
-        t = np.linspace(0,len(traces[0]) / config.sampling_rate, len(traces[0]))
+        t = np.linspace(0,len(traces[0]) / config["soapyrx"]["sampling_rate"], len(traces[0]))
         plt.subplot(4, 1, 3)
         for trace in traces:
             plt.plot(t, trace / max(trace))
-        plt.title("%d aligned traces" % min(config.num_traces_per_point, config.num_traces_per_point_min))
+        plt.title("%d aligned traces" % min(config["fw"]["num_traces_per_point"], config["fw"]["num_traces_per_point_min"]))
         plt.xlabel("time [s]")
         plt.ylabel("normalized amplitude")
 
         plt.subplot(4,1,4)
         avg = np.average(traces, axis=0)
         plt.plot(t, avg / max(avg))
-        plt.title("Average of %d traces" % min(config.num_traces_per_point, config.num_traces_per_point_min))
+        plt.title("Average of %d traces" % min(config["fw"]["num_traces_per_point"], config["fw"]["num_traces_per_point_min"]))
         plt.xlabel("time [s]")
         plt.ylabel("normalized amplitude")
 
@@ -550,8 +550,8 @@ def find_starts(config, data, target_path, index):
     """
     
     trigger = butter_bandpass_filter(
-        data, config.bandpass_lower, config.bandpass_upper,
-        config.sampling_rate, 6)
+        data, config["scaff"]["bandpass_lower"], config["scaff"]["bandpass_upper"],
+        config["soapyrx"]["sampling_rate"], 6)
     
     #TOM ADDITION START
     #plt.clf()
@@ -562,9 +562,9 @@ def find_starts(config, data, target_path, index):
     trigger = np.absolute(trigger)
     # Use an SOS filter because the old one raised exception when using small
     # lowpass values:
-    lpf = signal.butter(5, config.lowpass_freq, 'low', fs=config.sampling_rate, output='sos')
+    lpf = signal.butter(5, config["scaff"]["lowpass_freq"], 'low', fs=config["soapyrx"]["sampling_rate"], output='sos')
     trigger = np.array(signal.sosfilt(lpf, trigger), dtype=trigger.dtype)
-    # trigger = butter_lowpass_filter(trigger, config.lowpass_freq,config.sampling_rate, 6)
+    # trigger = butter_lowpass_filter(trigger, config["scaff"]["lowpass_freq"],config["soapyrx"]["sampling_rate"], 6)
 
     #TOM ADDITION START
     #plt.clf()
@@ -573,7 +573,7 @@ def find_starts(config, data, target_path, index):
     #TOM ADDITION END
 
     # transient = 0.0005
-    # start_idx = int(transient * config.sampling_rate)
+    # start_idx = int(transient * config["soapyrx"]["sampling_rate"])
     start_idx = 0
     average = np.average(trigger[start_idx:])
     maximum = np.max(trigger[start_idx:])
@@ -582,20 +582,20 @@ def find_starts(config, data, target_path, index):
     if average < 1.1*middle:
         l.LOGGER.info("Adjusting average to avg + (max - avg) / 2")
         average = average + (maximum - average) / 2
-    offset = -int(config.trigger_offset * config.sampling_rate)
+    offset = -int(config["scaff"]["trigger_offset"] * config["soapyrx"]["sampling_rate"])
 
-    if config.trigger_rising:
+    if config["scaff"]["trigger_rising"]:
         trigger_fn = lambda x, y: x > y
     else:
         trigger_fn = lambda x, y: x < y
 
-    if config.trigger_threshold is not None and config.trigger_threshold > 0:
+    if config["scaff"]["trigger_threshold"] is not None and config["scaff"]["trigger_threshold"] > 0:
         l.LOGGER.info("Use config trigger treshold instead of average")
-        average = config.trigger_threshold / 100 # NOTE: / 100 because of *100 in plot_results().
+        average = config["scaff"]["trigger_threshold"] / 100 # NOTE: / 100 because of *100 in plot_results().
 
     # The cryptic numpy code below is equivalent to looping over the signal and
     # recording the indices where the trigger crosses the average value in the
-    # direction specified by config.trigger_rising. It is faster than a Python
+    # direction specified by config["scaff"]["trigger_rising"]. It is faster than a Python
     # loop by a factor of ~1000, so we trade readability for speed.
     trigger_signal = trigger_fn(trigger, average)[start_idx:]
     starts = np.where((trigger_signal[1:] != trigger_signal[:-1])
@@ -636,7 +636,7 @@ def extract(data, config, average_file_name=None, plot=False, target_path=None, 
     # assert len(data) != 0, "ERROR, empty data just after measuring"
     if len(data) == 0:
         l.LOGGER.warn("Empty data, replacing with zeros!")
-        template = np.load(config.template_name)
+        template = np.load(config["scaff"]["template_name"])
         return np.zeros(len(template)), np.zeros(len(template))
 
     #TOM ADDITION START
@@ -647,15 +647,15 @@ def extract(data, config, average_file_name=None, plot=False, target_path=None, 
     # plt.plot(data)
     # plt.show()
 
-    template = np.load(config.template_name) if config.template_name else None
+    template = np.load(config["scaff"]["template_name"]) if config["scaff"]["template_name"] else None
 
     if template is not None and len(template) != int(
-            config.signal_length * config.sampling_rate):
+            config["scaff"]["signal_length"] * config["soapyrx"]["sampling_rate"]):
         l.LOGGER.warn("Template length doesn't match collection parameters. "
               "Is this the right template?")
 
     # cut usless transient
-    data = data[int(config.drop_start * config.sampling_rate):]
+    data = data[int(config["scaff"]["drop_start"] * config["soapyrx"]["sampling_rate"]):]
 
 
     #TOM ADDITION START
@@ -667,7 +667,7 @@ def extract(data, config, average_file_name=None, plot=False, target_path=None, 
     # assert len(data) != 0, "ERROR, empty data after drop_start"
     if len(data) == 0:
        l.LOGGER.warn("Empty data after drop start, replacing with zeros!")
-       template = np.load(config.template_name)
+       template = np.load(config["scaff"]["template_name"])
        return np.zeros(len(template)), np.zeros(len(template))
 
 
@@ -714,10 +714,10 @@ def extract(data, config, average_file_name=None, plot=False, target_path=None, 
     traces_q = []
     traces_i_augmented = []
     traces_q_augmented = []
-    trace_length = int(config.signal_length * config.sampling_rate)
+    trace_length = int(config["scaff"]["signal_length"] * config["soapyrx"]["sampling_rate"])
     l.LOGGER.info("Number of starts: {}".format(len(trace_starts)))
     for start_idx, start in enumerate(trace_starts):
-        if len(traces_amp) >= min(config.num_traces_per_point, config.num_traces_per_point_min):
+        if len(traces_amp) >= min(config["fw"]["num_traces_per_point"], config["fw"]["num_traces_per_point_min"]):
             break
 
         stop = start + trace_length
@@ -730,14 +730,14 @@ def extract(data, config, average_file_name=None, plot=False, target_path=None, 
             template = trace_amp
             continue
 
-        trace_lpf = butter_lowpass_filter(trace_amp, config.sampling_rate / 4,
-                config.sampling_rate)
-        template_lpf = butter_lowpass_filter(template, config.sampling_rate / 4,
-                config.sampling_rate)
+        trace_lpf = butter_lowpass_filter(trace_amp, config["soapyrx"]["sampling_rate"] / 4,
+                config["soapyrx"]["sampling_rate"])
+        template_lpf = butter_lowpass_filter(template, config["soapyrx"]["sampling_rate"] / 4,
+                config["soapyrx"]["sampling_rate"])
         correlation = signal.correlate(trace_lpf**2, template_lpf**2)
         l.LOGGER.debug("corr={}".format(max(correlation)))
-        if max(correlation) <= config.min_correlation:
-            l.LOGGER.warn("WARN: Skip trace start: corr={} <= corr_min={}".format(max(correlation), config.min_correlation))
+        if max(correlation) <= config["scaff"]["min_correlation"]:
+            l.LOGGER.warn("WARN: Skip trace start: corr={} <= corr_min={}".format(max(correlation), config["scaff"]["min_correlation"]))
             continue
 
         shift = np.argmax(correlation) - (len(template)-1)
@@ -780,13 +780,13 @@ def extract(data, config, average_file_name=None, plot=False, target_path=None, 
 
     std = np.std(traces_amp,axis=0)
 
-    l.LOGGER.info("Extracted ")
+    l.LOGGER.info("Extraction summary: ")
     l.LOGGER.info("Number = {}".format(len(traces_amp)))
-    l.LOGGER.info("avg[Max(std)] = {.2E}".format(avg_amp[std.argmax()]))
-    l.LOGGER.info("Max(u) = Max(std) = {.2E}".format(max(std)))
-    l.LOGGER.info("Max(u_rel) = {.2E}%".format(100*max(std)/avg_amp[std.argmax()]))
+    l.LOGGER.info("avg[Max(std)] = {:.2E}".format(avg_amp[std.argmax()]))
+    l.LOGGER.info("Max(u) = Max(std) = {:.2E}".format(max(std)))
+    l.LOGGER.info("Max(u_rel) = {:.2E} percentage".format(100*max(std)/avg_amp[std.argmax()]))
 
-    if config.keep_all:
+    if config["scaff"]["keep_all"]:
         return traces_amp
     else:
         return avg_amp, avg_phr, avg_i, avg_q, avg_i_augmented, avg_q_augmented

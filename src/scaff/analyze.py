@@ -504,9 +504,8 @@ def plot_results(config, data, trigger, trigger_average, starts, traces, target_
     plt.xlabel("time [s]")
     plt.ylabel("frequency [Hz]")
 
-    if(len(traces) == 0):
-        l.LOGGER.warn("No encryption was extracted!")
-    else:
+    # Don't continue to plot if no encryption was extracted.
+    if len(traces) != 0:
         t = np.linspace(0,len(traces[0]) / config["soapyrx"]["sampling_rate"], len(traces[0]))
         plt.subplot(4, 2, index_base + 4)
         for trace in traces:
@@ -576,7 +575,7 @@ def find_starts(config, data, target_path, index):
     minimum = np.min(trigger[start_idx:])
     middle = (np.max(trigger[start_idx:]) - min(trigger[start_idx:])) / 2
     if average < 1.1*middle:
-        l.LOGGER.info("Adjusting average to avg + (max - avg) / 2")
+        l.LOGGER.debug("Adjusting average to avg + (max - avg) / 2")
         average = average + (maximum - average) / 2
     offset = -int(config["scaff"]["trigger_offset"] * config["soapyrx"]["sampling_rate"])
 
@@ -586,7 +585,7 @@ def find_starts(config, data, target_path, index):
         trigger_fn = lambda x, y: x < y
 
     if config["scaff"]["trigger_threshold"] is not None and config["scaff"]["trigger_threshold"] > 0:
-        l.LOGGER.info("Use config trigger treshold instead of average")
+        l.LOGGER.debug("Use config trigger treshold instead of average!")
         average = config["scaff"]["trigger_threshold"] / 100 # NOTE: / 100 because of *100 in plot_results().
 
     # The cryptic numpy code below is equivalent to looping over the signal and
@@ -613,94 +612,84 @@ def find_starts(config, data, target_path, index):
 
     return starts, trigger, average
 
-# The part that uses a frequency component as trigger was initially
-# inspired by https://github.com/bolek42/rsa-sdr
-# The code below contains a few hacks to deal with all possible errors we
-# encountered with different radios and setups. It is not very clean but it is
-# quite stable.
-def extract(data, config, average_file_name=None, plot=False, target_path=None, savePlot=False, index=0):
-    """Post-process a radio capture to get a clean and well-aligned trace.
-
-    """
+def extract(data, template, config, average_file_name=None, plot=False, target_path=None, savePlot=False, index=0):
+    """Post-process an IQ signal to get a clean and well-aligned amplitude and
+    phase rotation trace."""
+    # Compute needed parameters.
+    # Length of a trace.
+    trace_length = int(config["scaff"]["signal_length"] * config["soapyrx"]["sampling_rate"])
+    num_traces_per_point = config["fw"]["num_traces_per_point"]
+    # Sanity-check.
     if len(data) == 0:
         raise Exception("Empty data!")
-
-    template = np.load(config["scaff"]["template_name"]) if config["scaff"]["template_name"] else None
-
-    if template is not None and len(template) != int(
-            config["scaff"]["signal_length"] * config["soapyrx"]["sampling_rate"]):
-        l.LOGGER.warn("Template length doesn't match collection parameters. "
-              "Is this the right template?")
-
-    # AMPlitude
+    if template is not None and len(template) != trace_length:
+        raise Exception("Template length doesn't match collection parameters: {} != {}".format(len(template), trace_length))
+    # Get signal components.
     data_amp = np.absolute(data)
-    # PHase Rotation
     data_phr = get_phase_rot(data)
 
-    #TOM ADDITION START
-    #plt.clf()
-    #plt.plot(data)
-    #plt.savefig(target_path+"/"+str(index)+"_3-data-absolute.png")
-    #TOM ADDITION END
-    #
-    # extract/aling trace with trigger frequency + autocorrelation
-    #
+    # Create starts based on trigger frequency.x
     # NOTE: find_starts() will work with the amplitude, but we will use the
     # starts indexes against the raw I/Q.
     trace_starts, trigger, trigger_avg = find_starts(config, data_amp, target_path, index)
 
-    # extract at trigger + autocorrelate with the first to align
-    traces_amp = []
-    traces_phr = []
-    trace_length = int(config["scaff"]["signal_length"] * config["soapyrx"]["sampling_rate"])
-    l.LOGGER.info("Number of starts: {}".format(len(trace_starts)))
+    # Extract at trigger + autocorrelate with the template to align.
+    traces_amp = [] # Extracted amplitude traces.
+    traces_phr = [] # Extracted phase rotation traces.
+    skip_nb = 0     # Number of skipped starts.
+    corrs = []      # Correlations coefficients stats (during autocorrelation).
     for start_idx, start in enumerate(trace_starts):
-        if len(traces_amp) > config["fw"]["num_traces_per_point"]:
-            break
-
         stop = start + trace_length
-
+        # Don't try to extract more traces than configured AES.
+        if len(traces_amp) >= num_traces_per_point:
+            break
+        # Don't try to extract out of the trace index.
         if stop > len(data_amp):
             break
-
+        # Compute current trace candidate.
         trace_amp = data_amp[start:stop]
+        # If template is not provided, use the first trace instead.
         if template is None or len(template) == 0:
+            l.LOGGER.debug("Use first trace as template!")
             template = trace_amp
             continue
-
-        trace_lpf = butter_lowpass_filter(trace_amp, config["soapyrx"]["sampling_rate"] / 4,
-                config["soapyrx"]["sampling_rate"])
-        template_lpf = butter_lowpass_filter(template, config["soapyrx"]["sampling_rate"] / 4,
-                config["soapyrx"]["sampling_rate"])
-        correlation = signal.correlate(trace_lpf**2, template_lpf**2)
-        l.LOGGER.debug("corr={}".format(max(correlation)))
-        if max(correlation) <= config["scaff"]["min_correlation"]:
-            l.LOGGER.warn("WARN: Skip trace start: corr={} <= corr_min={}".format(max(correlation), config["scaff"]["min_correlation"]))
+        # Perform the autocorrelation between trace candidate and template.
+        trace_lpf    = butter_lowpass_filter(trace_amp, config["soapyrx"]["sampling_rate"] / 4, config["soapyrx"]["sampling_rate"])
+        template_lpf = butter_lowpass_filter(template, config["soapyrx"]["sampling_rate"]  / 4, config["soapyrx"]["sampling_rate"])
+        # NOTE: Arbitrary but gives better alignment result.
+        correlation = signal.correlate(trace_lpf ** 2, template_lpf ** 2)
+        # correlation = signal.correlate(trace_lpf, template_lpf)
+        corrs.append(max(correlation))
+        # Check correlation if required.
+        if config["scaff"]["min_correlation"] > 0 and max(correlation) < config["scaff"]["min_correlation"]:
+            l.LOGGER.debug("Skip trace start: {} < {}".format(max(correlation), config["scaff"]["min_correlation"]))
+            skip_nb += 1
             continue
+        # Save extracted traces.
+        shift = np.argmax(correlation) - (len(template) - 1)
+        traces_amp.append(data_amp[start + shift : stop + shift])
+        traces_phr.append(data_phr[start + shift : stop + shift])
 
-        shift = np.argmax(correlation) - (len(template)-1)
-        traces_amp.append(data_amp[start+shift:stop+shift])
-        traces_phr.append(data_phr[start+shift:stop+shift])
-
+    # Average the extracted traces.
     avg_amp = np.average(traces_amp, axis=0)
     avg_phr = np.average(traces_phr, axis=0)
 
+    # Print the results.
+    l.LOGGER.info("num_traces_per_point > starts > extracted > min ; skip_by_corr : {} > {} > {} > {} ; {}".format(num_traces_per_point, len(trace_starts), len(traces_amp), config["fw"]["num_traces_per_point_min"], skip_nb))
+    if len(corrs) != 0:
+        l.LOGGER.info("percentile(corrs) : 1% / 5% / 10% / 25% : {:.2e} / {:.2e} / {:.2e} / {:.2e}".format(np.percentile(corrs, 1), np.percentile(corrs, 5), np.percentile(corrs, 10), np.percentile(corrs, 25)))
+
+    # Plot the results.
     if plot or savePlot:
         plot_results(config, data_amp, trigger, trigger_avg, trace_starts, traces_amp, target_path, plot, savePlot, "amp", final=False)
         plot_results(config, data_phr, trigger, trigger_avg, trace_starts, traces_phr, target_path, plot, savePlot, "phr", final=True)
 
+    # Check for errors, otherwise, save averaged amplitude trace.
     if (np.shape(avg_amp) == () or np.shape(avg_phr) == ()):
         raise Exception("Trigger or correlation configuration excluded all starts!")
     elif len(traces_amp) < config["fw"]["num_traces_per_point_min"]:
         raise Exception("Not enough traces have been averaged: {} < {}".format(len(traces_amp), config["fw"]["num_traces_per_point_min"]))
     elif average_file_name:
         np.save(average_file_name, avg_amp)
-
-    std = np.std(traces_amp,axis=0)
-    l.LOGGER.info("Extraction summary: ")
-    l.LOGGER.info("Number = {}".format(len(traces_amp)))
-    l.LOGGER.info("avg[Max(std)] = {:.2E}".format(avg_amp[std.argmax()]))
-    l.LOGGER.info("Max(u) = Max(std) = {:.2E}".format(max(std)))
-    l.LOGGER.info("Max(u_rel) = {:.2E} percentage".format(100*max(std)/avg_amp[std.argmax()]))
 
     return data, avg_amp, avg_phr

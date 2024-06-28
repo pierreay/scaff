@@ -511,14 +511,14 @@ def plot_results(config, data, trigger, trigger_average, starts, traces, target_
         plt.subplot(4, 2, index_base + 4)
         for trace in traces:
             plt.plot(t, trace / max(trace))
-        plt.title("{} aligned traces".format(len(starts)))
+        plt.title("{} aligned traces".format(len(traces)))
         plt.xlabel("time [s]")
         plt.ylabel("normalized amplitude")
 
         plt.subplot(4, 2, index_base + 6)
         avg = np.average(traces, axis=0)
         plt.plot(t, avg / max(avg))
-        plt.title("Average of {} traces".format(len(starts)))
+        plt.title("Average of {} traces".format(len(traces)))
         plt.xlabel("time [s]")
         plt.ylabel("normalized amplitude")
 
@@ -655,7 +655,7 @@ def extract(data, config, average_file_name=None, plot=False, target_path=None, 
     trace_length = int(config["scaff"]["signal_length"] * config["soapyrx"]["sampling_rate"])
     l.LOGGER.info("Number of starts: {}".format(len(trace_starts)))
     for start_idx, start in enumerate(trace_starts):
-        if len(traces_amp) >= min(config["fw"]["num_traces_per_point"], config["fw"]["num_traces_per_point_min"]):
+        if len(traces_amp) > config["fw"]["num_traces_per_point"]:
             break
 
         stop = start + trace_length
@@ -691,6 +691,8 @@ def extract(data, config, average_file_name=None, plot=False, target_path=None, 
 
     if (np.shape(avg_amp) == () or np.shape(avg_phr) == ()):
         raise Exception("Trigger or correlation configuration excluded all starts!")
+    elif len(traces_amp) < config["fw"]["num_traces_per_point_min"]:
+        raise Exception("Not enough traces have been averaged: {} < {}".format(len(traces_amp), config["fw"]["num_traces_per_point_min"]))
     elif average_file_name:
         np.save(average_file_name, avg_amp)
 

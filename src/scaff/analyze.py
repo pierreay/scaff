@@ -629,19 +629,10 @@ def extract(data, config, average_file_name=None, plot=False, target_path=None, 
     traces.
 
     """
-    # assert len(data) != 0, "ERROR, empty data just after measuring"
     if len(data) == 0:
         l.LOGGER.warn("Empty data, replacing with zeros!")
         template = np.load(config["scaff"]["template_name"])
         return np.zeros(len(template)), np.zeros(len(template))
-
-    #TOM ADDITION START
-    #plt.clf()
-    #plt.plot(data)
-    #plt.savefig(target_path+"/"+str(index)+"_1-data.png")
-    #TOM ADDITION END
-    # plt.plot(data)
-    # plt.show()
 
     template = np.load(config["scaff"]["template_name"]) if config["scaff"]["template_name"] else None
 
@@ -653,27 +644,11 @@ def extract(data, config, average_file_name=None, plot=False, target_path=None, 
     # cut usless transient
     data = data[int(config["scaff"]["drop_start"] * config["soapyrx"]["sampling_rate"]):]
 
-
-    #TOM ADDITION START
-    #plt.clf()
-    #plt.plot(data)
-    #plt.savefig(target_path+"/"+str(index)+"_2-data-trimmed.png")
-    #TOM ADDITION END
-
     # assert len(data) != 0, "ERROR, empty data after drop_start"
     if len(data) == 0:
        l.LOGGER.warn("Empty data after drop start, replacing with zeros!")
        template = np.load(config["scaff"]["template_name"])
        return np.zeros(len(template)), np.zeros(len(template))
-
-
-    # polar discriminator
-    # fdemod = data[1:] * np.conj(data[:-1])
-    # fdemod = np.angle(fdemod)
-    # plt.plot(fdemod)
-    # plt.show()
-    # return fdemod
-    # data = fdemod
 
     # AMPlitude
     data_amp = np.absolute(data)

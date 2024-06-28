@@ -781,10 +781,10 @@ def extract(data, config, average_file_name=None, plot=False, target_path=None, 
     std = np.std(traces_amp,axis=0)
 
     l.LOGGER.info("Extracted ")
-    l.LOGGER.info("Number = ",len(traces_amp))
-    l.LOGGER.info("avg[Max(std)] = %.2E"%avg_amp[std.argmax()])
-    l.LOGGER.info("Max(u) = Max(std) = %.2E"%(max(std)))
-    l.LOGGER.info("Max(u_rel) = %.2E"%(100*max(std)/avg_amp[std.argmax()]),"%")
+    l.LOGGER.info("Number = {}".format(len(traces_amp)))
+    l.LOGGER.info("avg[Max(std)] = {.2E}".format(avg_amp[std.argmax()]))
+    l.LOGGER.info("Max(u) = Max(std) = {.2E}".format(max(std)))
+    l.LOGGER.info("Max(u_rel) = {.2E}%".format(100*max(std)/avg_amp[std.argmax()]))
 
     if config.keep_all:
         return traces_amp

@@ -531,7 +531,7 @@ def plot_results(config, data, trigger, trigger_average, starts, traces, target_
         figure.set_size_inches(32, 18) # Set figure's size manually to your full screen (32x18).
 
         if savePlot and target_path != None:
-            plt.savefig(target_path + "/plot_{}.png".format(title), dpi=100, bbox_inches='tight')
+            plt.savefig(target_path + "/template.png", dpi=100, bbox_inches='tight')
         if plot:
             plt.show()
 

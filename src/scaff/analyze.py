@@ -492,8 +492,6 @@ def plot_results(config, data, trigger, trigger_average, starts, traces, target_
         plt.axvline(x=stop / config.sampling_rate, color='g', linestyle='--')
 
     plt.subplot(4, 1, 2)
-    #np.set_printoptions(threshold=np.inf)
-    #print(data)
     
     plt.specgram(
         data, NFFT=256, Fs=config.sampling_rate, Fc=0, noverlap=127, cmap=None, xextent=None,
@@ -512,7 +510,7 @@ def plot_results(config, data, trigger, trigger_average, starts, traces, target_
         # sides='default', scale_by_freq=None, return_line=None)
 
     if(len(traces) == 0):
-        print("WARNING: no encryption was extracted")
+        l.LOGGER.warn("No encryption was extracted!")
     else:
         t = np.linspace(0,len(traces[0]) / config.sampling_rate, len(traces[0]))
         plt.subplot(4, 1, 3)
@@ -582,8 +580,7 @@ def find_starts(config, data, target_path, index):
     minimum = np.min(trigger[start_idx:])
     middle = (np.max(trigger[start_idx:]) - min(trigger[start_idx:])) / 2
     if average < 1.1*middle:
-        print("")
-        print("Adjusting average to avg + (max - avg) / 2")
+        l.LOGGER.info("Adjusting average to avg + (max - avg) / 2")
         average = average + (maximum - average) / 2
     offset = -int(config.trigger_offset * config.sampling_rate)
 
@@ -593,7 +590,7 @@ def find_starts(config, data, target_path, index):
         trigger_fn = lambda x, y: x < y
 
     if config.trigger_threshold is not None and config.trigger_threshold > 0:
-        print("Use config trigger treshold instead of average")
+        l.LOGGER.info("Use config trigger treshold instead of average")
         average = config.trigger_threshold / 100 # NOTE: / 100 because of *100 in plot_results().
 
     # The cryptic numpy code below is equivalent to looping over the signal and
@@ -638,7 +635,7 @@ def extract(data, config, average_file_name=None, plot=False, target_path=None, 
     """
     # assert len(data) != 0, "ERROR, empty data just after measuring"
     if len(data) == 0:
-        print("Warning! empty data, replacing with zeros")
+        l.LOGGER.warn("Empty data, replacing with zeros!")
         template = np.load(config.template_name)
         return np.zeros(len(template)), np.zeros(len(template))
 
@@ -654,7 +651,7 @@ def extract(data, config, average_file_name=None, plot=False, target_path=None, 
 
     if template is not None and len(template) != int(
             config.signal_length * config.sampling_rate):
-        print("WARNING: Template length doesn't match collection parameters. "
+        l.LOGGER.warn("Template length doesn't match collection parameters. "
               "Is this the right template?")
 
     # cut usless transient
@@ -669,7 +666,7 @@ def extract(data, config, average_file_name=None, plot=False, target_path=None, 
 
     # assert len(data) != 0, "ERROR, empty data after drop_start"
     if len(data) == 0:
-       print("Warning! empty data after drop start, replacing with zeros")
+       l.LOGGER.warn("Empty data after drop start, replacing with zeros!")
        template = np.load(config.template_name)
        return np.zeros(len(template)), np.zeros(len(template))
 
@@ -783,23 +780,13 @@ def extract(data, config, average_file_name=None, plot=False, target_path=None, 
 
     std = np.std(traces_amp,axis=0)
 
-    print("Extracted ")
-    print("Number = ",len(traces_amp))
-    print("avg[Max(std)] = %.2E"%avg_amp[std.argmax()])
-    print("Max(u) = Max(std) = %.2E"%(max(std)))
-    print("Max(u_rel) = %.2E"%(100*max(std)/avg_amp[std.argmax()]),"%")
-
-    # plt.plot(avg, 'r')
-    # plt.plot(template, 'b')
-    # plt.show()
+    l.LOGGER.info("Extracted ")
+    l.LOGGER.info("Number = ",len(traces_amp))
+    l.LOGGER.info("avg[Max(std)] = %.2E"%avg_amp[std.argmax()])
+    l.LOGGER.info("Max(u) = Max(std) = %.2E"%(max(std)))
+    l.LOGGER.info("Max(u_rel) = %.2E"%(100*max(std)/avg_amp[std.argmax()]),"%")
 
     if config.keep_all:
         return traces_amp
     else:
         return avg_amp, avg_phr, avg_i, avg_q, avg_i_augmented, avg_q_augmented
-
-    # except Exception as inst:
-    #     print(inst)
-    #     print("Error, returning zeros")
-    #     template = np.load(config.template_name)
-    #     return np.zeros(len(template)), np.zeros(len(template)), np.zeros(len(template)), np.zeros(len(template)), np.zeros(len(template)), np.zeros(len(template))

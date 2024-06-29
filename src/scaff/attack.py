@@ -203,8 +203,6 @@ def generic_load(data_path,number,wstart=0,wend=0, average=True,
               help="Visualize relevant data (use only with a small number of traces.")
 @click.option("--save-images/--no-save-images", default=False, show_default=True,
               help="Save images (when implemented).")
-@click.option("--wait/--no-wait", default=False, show_default=True,
-              help="Wait for user input after having loaded the traces.")
 @click.option("--num-key-bytes", default=16, show_default=True,
               help="Number of bytes in the key to attack.")
 @click.option("--bruteforce/--no-bruteforce", default=False, show_default=True,
@@ -219,7 +217,7 @@ def generic_load(data_path,number,wstart=0,wend=0, average=True,
               help="Normalize each trace set: traces = (traces-avg(traces))/std(traces).")
 @click.option("--comp", default="amp",
               help="Choose component to load (e.g., amplitude is 'amp'")
-def cli(data_path, num_traces, start_point, end_point, plot, save_images, wait, num_key_bytes,
+def cli(data_path, num_traces, start_point, end_point, plot, save_images, num_key_bytes,
         bruteforce, bit_bound_end, average, norm, norm2, comp):
     """
     Run an attack against previously collected traces.
@@ -228,13 +226,12 @@ def cli(data_path, num_traces, start_point, end_point, plot, save_images, wait, 
     apply to all attacks; see the individual attacks' documentation for
     attack-specific options.
     """
-    global PLOT, WAIT, NUM_KEY_BYTES, BRUTEFORCE, BIT_BOUND_END, PLAINTEXTS, TRACES, KEYFILE, DATAPATH
+    global PLOT, NUM_KEY_BYTES, BRUTEFORCE, BIT_BOUND_END, PLAINTEXTS, TRACES, KEYFILE, DATAPATH
     global KEYS, FIXED_KEY, SAVE_IMAGES, CIPHERTEXTS
     global COMP
     global NUM_TRACES, START_POINT, END_POINT, AVERAGE, NORM, NORM2
     SAVE_IMAGES = save_images
     PLOT = plot
-    WAIT = wait
     NUM_KEY_BYTES = num_key_bytes
     if bruteforce and num_key_bytes != 16:
         raise Exception("Bruteforce not available for num_key_bytes != 16")
@@ -1348,10 +1345,6 @@ def tra_create(template_dir, num_pois, poi_spacing):
         if not path.isdir(template_dir):
             raise
 
-    if WAIT :
-        print("Loading complete")
-        input("Press any key to start\n")
- 
     if PLOT:
         plt.plot(np.average(TRACES,axis=0),'b')
         plt.show()
@@ -1444,10 +1437,6 @@ def tra_attack(template_dir):
     location of a previously created template with compatible settings (e.g.
     same trace length).
     """
-    if WAIT :
-        print("Loading complete")
-        input("Press any key to start")
-        
     if PLOT:
         plt.plot(np.average(TRACES,axis=0),'b')
         plt.show()
@@ -1536,10 +1525,6 @@ def cra():
     global LOG_PROBA
     LOG_PROBA = [[0 for r in range(256)] for bnum in range(NUM_KEY_BYTES)]
     
-    if WAIT :
-        print("Loading complete")
-        input("Press any key to start")
- 
     if PLOT:
         for t in TRACES:
             plt.plot(t,linewidth=0.5)

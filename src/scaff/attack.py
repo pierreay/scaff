@@ -81,7 +81,6 @@ COMP = None
 NUM_TRACES = None
 START_POINT = None
 END_POINT = None
-AVERAGE = None
 NORM = None
 NORM2 = None
 
@@ -111,10 +110,8 @@ def load_all(filename, number=0):
 
 # Smart loading of the traces from files
 # 1. Discard empty traces (errors occurred during collection)
-# 1. Apply pre-processing techniques
-# 2. Keep all the traces in a batch or average them (if they were collected with
-#    the keep-all option. 
-def generic_load(data_path,number,wstart=0,wend=0, average=True,
+# 2. Apply pre-processing techniques
+def generic_load(data_path,number,wstart=0,wend=0,
                  norm=False, norm2=False, comp="amp"):
     """
     Function that loads plainext, key(s), and (raw) traces.
@@ -146,40 +143,22 @@ def generic_load(data_path,number,wstart=0,wend=0, average=True,
             empty += 1
             continue
 
-        # if average, transform into array with one element
-        # if len(np.shape(raw_traces)) == 1:
         raw_traces = [raw_traces]
 
         if wend != 0:
             raw_traces = np.asarray(raw_traces)[:,wstart:wend]
 
-        if average:
-            # if raw_traces[0].all() == 0:
-                # continue
-            # print type(raw_traces)
-            avg = np.average(raw_traces, axis=0)
-            avg = pre_process(avg, norm)
-            traces.append(avg)
-            if fixed_plaintext:
-                plaintexts.append(p[0])
-            else:
-                plaintexts.append(p[i])
+        # iterate over traces
+        for trace in raw_traces:
+            if trace.all() == 0:
+                continue
+            trace = pre_process(trace, norm)
+            traces.append(trace)
+            plaintexts.append(p[i])
             if fixed_key:
                 keys.append(k[0])
             else:
                 keys.append(k[i])
-        else:
-            # iterate over traces
-            for trace in raw_traces:
-                if trace.all() == 0:
-                    continue
-                trace = pre_process(trace, norm)
-                traces.append(trace)
-                plaintexts.append(p[i])
-                if fixed_key:
-                    keys.append(k[0])
-                else:
-                    keys.append(k[i])
     if empty > 0:
         l.LOGGER.warn("Number of empty traces: {}".format(empty))
     traces = np.asarray(traces)
@@ -207,8 +186,6 @@ def generic_load(data_path,number,wstart=0,wend=0, average=True,
               help="Save images (when implemented).")
 @click.option("--bruteforce/--no-bruteforce", default=False, show_default=True,
               help="Attempt to fix a few wrong key bits with informed exhaustive search.")
-@click.option("--average/--no-average", default=True, show_default=True,
-              help="Use average of a batch as preprocessing.")
 @click.option("--norm/--no-norm", default=False, show_default=True,
               help="Normalize each trace individually: x = (x-avg(x))/std(x).")
 @click.option("--norm2/--no-norm2", default=False, show_default=True,
@@ -216,7 +193,7 @@ def generic_load(data_path,number,wstart=0,wend=0, average=True,
 @click.option("--comp", default="amp",
               help="Choose component to load (e.g., amplitude is 'amp'")
 def cli(data_path, num_traces, start_point, end_point, plot, save_images,
-        bruteforce, average, norm, norm2, comp):
+        bruteforce, norm, norm2, comp):
     """
     Run an attack against previously collected traces.
 
@@ -227,7 +204,7 @@ def cli(data_path, num_traces, start_point, end_point, plot, save_images,
     global PLOT, BRUTEFORCE, PLAINTEXTS, TRACES, KEYFILE, DATAPATH
     global KEYS, FIXED_KEY, SAVE_IMAGES, CIPHERTEXTS
     global COMP
-    global NUM_TRACES, START_POINT, END_POINT, AVERAGE, NORM, NORM2
+    global NUM_TRACES, START_POINT, END_POINT, NORM, NORM2
     SAVE_IMAGES = save_images
     PLOT = plot
     BRUTEFORCE = bruteforce
@@ -238,12 +215,11 @@ def cli(data_path, num_traces, start_point, end_point, plot, save_images,
     NUM_TRACES = num_traces
     START_POINT = start_point
     END_POINT = end_point
-    AVERAGE = average
     NORM = norm
     NORM2 = norm2
     
     FIXED_KEY, PLAINTEXTS, KEYS, TRACES = generic_load(
-        data_path, num_traces, start_point, end_point, average, norm, norm2, comp=COMP
+        data_path, num_traces, start_point, end_point, norm, norm2, comp=COMP
     )
     
     CIPHERTEXTS = list(map(aes, PLAINTEXTS, KEYS))
@@ -1228,7 +1204,7 @@ def attack_recombined(variable, pois_algo, num_pois, poi_spacing, template_dir,
         print("comp={}".format(comp))
         COMP = comp
         FIXED_KEY, PLAINTEXTS, KEYS, TRACES = generic_load(
-            DATAPATH, NUM_TRACES, START_POINT, END_POINT, AVERAGE, NORM, NORM2, comp=comp
+            DATAPATH, NUM_TRACES, START_POINT, END_POINT, NORM, NORM2, comp=comp
         )
         CIPHERTEXTS = list(map(aes, PLAINTEXTS, KEYS))
         PLAINTEXTS = np.asarray(PLAINTEXTS)

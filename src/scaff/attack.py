@@ -37,7 +37,7 @@ from sklearn.feature_selection import mutual_info_classif
 # Plus other global variables
 PLOT = None
 SAVE_IMAGES = None
-NUM_KEY_BYTES = None
+NUM_KEY_BYTES = 16
 BRUTEFORCE = None
 BIT_BOUND_END = None
 PLAINTEXTS = None
@@ -203,8 +203,6 @@ def generic_load(data_path,number,wstart=0,wend=0, average=True,
               help="Visualize relevant data (use only with a small number of traces.")
 @click.option("--save-images/--no-save-images", default=False, show_default=True,
               help="Save images (when implemented).")
-@click.option("--num-key-bytes", default=16, show_default=True,
-              help="Number of bytes in the key to attack.")
 @click.option("--bruteforce/--no-bruteforce", default=False, show_default=True,
               help="Attempt to fix a few wrong key bits with informed exhaustive search.")
 @click.option("--bit-bound-end", default=40, show_default=True,
@@ -217,7 +215,7 @@ def generic_load(data_path,number,wstart=0,wend=0, average=True,
               help="Normalize each trace set: traces = (traces-avg(traces))/std(traces).")
 @click.option("--comp", default="amp",
               help="Choose component to load (e.g., amplitude is 'amp'")
-def cli(data_path, num_traces, start_point, end_point, plot, save_images, num_key_bytes,
+def cli(data_path, num_traces, start_point, end_point, plot, save_images,
         bruteforce, bit_bound_end, average, norm, norm2, comp):
     """
     Run an attack against previously collected traces.
@@ -226,15 +224,12 @@ def cli(data_path, num_traces, start_point, end_point, plot, save_images, num_ke
     apply to all attacks; see the individual attacks' documentation for
     attack-specific options.
     """
-    global PLOT, NUM_KEY_BYTES, BRUTEFORCE, BIT_BOUND_END, PLAINTEXTS, TRACES, KEYFILE, DATAPATH
+    global PLOT, BRUTEFORCE, BIT_BOUND_END, PLAINTEXTS, TRACES, KEYFILE, DATAPATH
     global KEYS, FIXED_KEY, SAVE_IMAGES, CIPHERTEXTS
     global COMP
     global NUM_TRACES, START_POINT, END_POINT, AVERAGE, NORM, NORM2
     SAVE_IMAGES = save_images
     PLOT = plot
-    NUM_KEY_BYTES = num_key_bytes
-    if bruteforce and num_key_bytes != 16:
-        raise Exception("Bruteforce not available for num_key_bytes != 16")
     BRUTEFORCE = bruteforce
     BIT_BOUND_END = bit_bound_end
     KEYFILE = path.join(data_path, 'key.txt')

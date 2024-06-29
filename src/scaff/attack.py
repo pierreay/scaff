@@ -37,9 +37,11 @@ from sklearn.feature_selection import mutual_info_classif
 # Plus other global variables
 PLOT = None
 SAVE_IMAGES = None
+# Number of bytes in the key to attack.
 NUM_KEY_BYTES = 16
 BRUTEFORCE = None
-BIT_BOUND_END = None
+# Set upper bound to key rank when bruteforcing.
+BIT_BOUND_END = 40
 PLAINTEXTS = None
 KEYS = None
 CIPHERTEXTS = None
@@ -205,8 +207,6 @@ def generic_load(data_path,number,wstart=0,wend=0, average=True,
               help="Save images (when implemented).")
 @click.option("--bruteforce/--no-bruteforce", default=False, show_default=True,
               help="Attempt to fix a few wrong key bits with informed exhaustive search.")
-@click.option("--bit-bound-end", default=40, show_default=True,
-              help="Set upper bound to key rank when bruteforcing.")
 @click.option("--average/--no-average", default=True, show_default=True,
               help="Use average of a batch as preprocessing.")
 @click.option("--norm/--no-norm", default=False, show_default=True,
@@ -216,7 +216,7 @@ def generic_load(data_path,number,wstart=0,wend=0, average=True,
 @click.option("--comp", default="amp",
               help="Choose component to load (e.g., amplitude is 'amp'")
 def cli(data_path, num_traces, start_point, end_point, plot, save_images,
-        bruteforce, bit_bound_end, average, norm, norm2, comp):
+        bruteforce, average, norm, norm2, comp):
     """
     Run an attack against previously collected traces.
 
@@ -224,14 +224,13 @@ def cli(data_path, num_traces, start_point, end_point, plot, save_images,
     apply to all attacks; see the individual attacks' documentation for
     attack-specific options.
     """
-    global PLOT, BRUTEFORCE, BIT_BOUND_END, PLAINTEXTS, TRACES, KEYFILE, DATAPATH
+    global PLOT, BRUTEFORCE, PLAINTEXTS, TRACES, KEYFILE, DATAPATH
     global KEYS, FIXED_KEY, SAVE_IMAGES, CIPHERTEXTS
     global COMP
     global NUM_TRACES, START_POINT, END_POINT, AVERAGE, NORM, NORM2
     SAVE_IMAGES = save_images
     PLOT = plot
     BRUTEFORCE = bruteforce
-    BIT_BOUND_END = bit_bound_end
     KEYFILE = path.join(data_path, 'key.txt')
     DATAPATH = data_path
     COMP = comp

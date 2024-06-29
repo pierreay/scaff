@@ -1,3 +1,10 @@
+"""Multi-processing module.
+
+The main purpose of processors.py is to provides fast processing facilities
+when working with large datasets (e.g., > 100 GB).
+
+"""
+
 # * Importation
 
 # Standard import.

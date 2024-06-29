@@ -45,6 +45,46 @@ class AppConf():
                 l.LOGGER.error("Bad TOML configuration file format!")
                 raise e
 
+class ModuleConf():
+    """Module configuration."""
+
+    # Package name.
+    _pkg_name = None
+    # Module name.
+    _mod_name = None
+
+    def __init__(self, _name):
+        """Initialize a module configuration.
+
+        :param _name: Should be the __name__ of the respective module.
+
+        Usage in child classes:
+        super().__init__(__name__)
+
+        """
+        self._pkg_name = _name.split(".")[0]
+        self._mod_name = _name.split(".")[1]
+    
+    def get_dict(self, appconf):
+        """Get module configuration from an AppConf.
+
+        Allows to automatically bypass the first 2 levels of the dictionnary to
+        access the pattern: '[package.module]'
+
+        :returns: The dictionnary level for the module.
+
+        """
+        assert isinstance(appconf, AppConf)
+        return appconf.toml[self._pkg_name][self._mod_name]
+
+    def load(self, appconf):
+        """Load the module configuration from an AppConf."""
+        assert False, "This method should be overridden!"
+
+    def check(self):
+        """Check that the module configuration is correct."""
+        assert False, "This method should be overridden!"
+
 # * Functions
 
 def loaded():

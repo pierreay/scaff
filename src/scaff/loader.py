@@ -20,7 +20,7 @@ from scaff import config
 
 # * Classes
 
-class LoaderConf():
+class LoaderConf(config.ModuleConf):
     """Configuration for the loader.py module."""
 
     # Path from which data should be loaded or stored.
@@ -29,26 +29,18 @@ class LoaderConf():
     data_pattern = None
 
     def __init__(self, data_path = None, data_pattern = None):
+        super().__init__(__name__)
         self.data_path = data_path
         self.data_pattern = data_pattern
 
-    @staticmethod
-    def _get_from_toml(toml):
-        """Allows to bypass the first 2-level dictionnary access.
-
-        :returns: The value stored in the TOML file, or None if it was an empty
-        string.
-
-        """
-        assert isinstance(toml, dict)
-        return toml[__name__.split(".")[0]][__name__.split(".")[1]]
-
     def load(self, appconf):
-        """Load the configuration from an AppConf."""
-        assert isinstance(appconf, config.AppConf)
-        self.data_path = LoaderConf._get_from_toml(appconf.toml)["data_path"]
+        self.data_path = self.get_dict(appconf)["data_path"]
         self.data_path = None if self.data_path == "" else self.data_path
-        self.data_pattern = LoaderConf._get_from_toml(appconf.toml)["data_pattern"]
+        self.data_pattern = self.get_dict(appconf)["data_pattern"]
+
+    def check(self):
+        assert data_path is not None
+        assert data_pattern is not None
 
 class Loader():
     """Load data from disk."""

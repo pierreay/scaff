@@ -6,7 +6,7 @@ import click
 import numpy as np
 from matplotlib import pyplot as plt
 
-from scaff import log as ll
+from scaff import logger as l
 from scaff import analyze
 
 SMALL_SIZE = 8*4
@@ -179,7 +179,7 @@ def generic_load(data_path,number,wstart=0,wend=0, average=True,
                 else:
                     keys.append(k[i])
     if empty > 0:
-        ll.LOGGER.warn("Number of empty traces: {}".format(empty))
+        l.LOGGER.warn("Number of empty traces: {}".format(empty))
     traces = np.asarray(traces)
 
     # Apply z-score normalization on the set
@@ -497,7 +497,7 @@ def estimate_rf_pf(fold):
                 RF[bnum][fold][i] = r
                 PF[bnum][fold][i] = p
     except ValueError as e:
-        ll.LOGGER.error("Cannot compute PCC: {}".format(e))
+        l.LOGGER.error("Cannot compute PCC: {}".format(e))
         raise Exception("Not enough traces to find corelations!")
 
 # Average the results from k different choices of the test set among the k-folds
@@ -1007,7 +1007,7 @@ def rank():
     try:
         from python_hel import hel
     except Exception as e:
-        ll.LOGGER.error("Can't import HEL and perform key ranking!")
+        l.LOGGER.error("Can't import HEL and perform key ranking!")
         return
     
     print("")
@@ -1111,7 +1111,7 @@ def profile(variable, lr_type, pois_algo, k_fold, num_pois, poi_spacing, pois_di
             raise
 
     if align is True:
-        ll.LOGGER.info("Align training traces with themselves...")
+        l.LOGGER.info("Align training traces with themselves...")
         TRACES = analyze.align_all(TRACES, int(fs), template=TRACES[0], tqdm_log=True)
 
     compute_variables(variable)
@@ -1120,7 +1120,7 @@ def profile(variable, lr_type, pois_algo, k_fold, num_pois, poi_spacing, pois_di
     try:
         find_pois(pois_algo, k_fold, num_pois, poi_spacing, template_dir)
     except Exception as e:
-        ll.LOGGER.error("Cannot find POIs: {}".format(e))
+        l.LOGGER.error("Cannot find POIs: {}".format(e))
     build_profile(variable, template_dir)
     fit(lr_type, variable)
     save_profile(template_dir)
@@ -1167,9 +1167,9 @@ def attack(variable, pois_algo, num_pois, poi_spacing, template_dir,
 
     if align is True:
         assert fs > 0
-        ll.LOGGER.info("Align attack traces with themselves...")
+        l.LOGGER.info("Align attack traces with themselves...")
         TRACES = analyze.align_all(TRACES, int(fs), template=TRACES[0], tqdm_log=True)
-        ll.LOGGER.info("Align attack traces with the profile...")
+        l.LOGGER.info("Align attack traces with the profile...")
         TRACES = analyze.align_all(TRACES, int(fs), template=PROFILE_MEAN_TRACE, tqdm_log=True)
     
     if PLOT:
@@ -1251,9 +1251,9 @@ def attack_recombined(variable, pois_algo, num_pois, poi_spacing, template_dir,
 
         if align is True:
             assert fs > 0
-            ll.LOGGER.info("Align attack traces with themselves...")
+            l.LOGGER.info("Align attack traces with themselves...")
             TRACES = analyze.align_all(TRACES, int(fs), template=TRACES[0], tqdm_log=True)
-            ll.LOGGER.info("Align attack traces with the profile...")
+            l.LOGGER.info("Align attack traces with the profile...")
             TRACES = analyze.align_all(TRACES, int(fs), template=PROFILE_MEAN_TRACE, tqdm_log=True)
 
         if PLOT:

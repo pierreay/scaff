@@ -7,7 +7,7 @@ from scipy.signal import butter, lfilter
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
-from scaff import log as l
+from scaff import logger as l
 
 def butter_highpass(cutoff, fs, order=5):
     nyq = 0.5 * fs

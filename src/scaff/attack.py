@@ -76,14 +76,12 @@ PROFILE_STDS = None
 PROFILE_MEAN_TRACE = None
 LOG_PROBA = None
 COMP = None
-NAME = None
 NUM_TRACES = None
 START_POINT = None
 END_POINT = None
 AVERAGE = None
 NORM = None
 NORM2 = None
-MIMO = None
 
 # Per-trace pre-processing:
 # 1. z-score normalization
@@ -114,15 +112,15 @@ def load_all(filename, number=0):
 # 1. Apply pre-processing techniques
 # 2. Keep all the traces in a batch or average them (if they were collected with
 #    the keep-all option. 
-def generic_load(data_path,name,number,wstart=0,wend=0, average=True,
-                 norm=False, norm2=False, mimo="", comp="amp"):
+def generic_load(data_path,number,wstart=0,wend=0, average=True,
+                 norm=False, norm2=False, comp="amp"):
     """
     Function that loads plainext, key(s), and (raw) traces.
     """
 
     empty = 0
-    p = load_all(path.join(data_path, 'pt_%s.txt' % name), number)
-    k = load_all(path.join(data_path, 'key_%s.txt' % name), number)
+    p = load_all(path.join(data_path, 'pt.txt'), number)
+    k = load_all(path.join(data_path, 'key.txt'), number)
     fixed_key = False
     if len(k) == 1:
         fixed_key = True
@@ -135,13 +133,10 @@ def generic_load(data_path,name,number,wstart=0,wend=0, average=True,
     keys = []
     traces = []
 
-    if mimo != "":
-        name = name + "_" + mimo
- 
     for i in range(number):
         # read average or raw traces from file
         raw_traces = np.load(
-                path.join(data_path, '%s_%s_%d.npy' % (comp, name, i))
+                path.join(data_path, '%d_%s.npy' % (i, comp))
         )
 
         if np.shape(raw_traces) == () or not raw_traces.any():
@@ -197,8 +192,6 @@ def generic_load(data_path,name,number,wstart=0,wend=0, average=True,
 @click.group()
 @click.option("--data-path", type=click.Path(exists=True, file_okay=False),
               help="Directory where the traces are stored.")
-@click.option("--name", default="",
-              help="Identifier of the experiment (obsolete; only for compatibility).")
 @click.option("--num-traces", default=0, show_default=True,
               help="The number of traces to use, or 0 to use the maximum available.")
 @click.option("--start-point", default=0, show_default=True,
@@ -223,12 +216,10 @@ def generic_load(data_path,name,number,wstart=0,wend=0, average=True,
               help="Normalize each trace individually: x = (x-avg(x))/std(x).")
 @click.option("--norm2/--no-norm2", default=False, show_default=True,
               help="Normalize each trace set: traces = (traces-avg(traces))/std(traces).")
-@click.option("--mimo", default="",
-              help="Choose ch1, ch2, eg, or mr")
 @click.option("--comp", default="amp",
               help="Choose component to load (e.g., amplitude is 'amp'")
 def cli(data_path, num_traces, start_point, end_point, plot, save_images, wait, num_key_bytes,
-        bruteforce, bit_bound_end, name, average, norm, norm2, mimo, comp):
+        bruteforce, bit_bound_end, average, norm, norm2, comp):
     """
     Run an attack against previously collected traces.
 
@@ -239,7 +230,7 @@ def cli(data_path, num_traces, start_point, end_point, plot, save_images, wait, 
     global PLOT, WAIT, NUM_KEY_BYTES, BRUTEFORCE, BIT_BOUND_END, PLAINTEXTS, TRACES, KEYFILE, DATAPATH
     global KEYS, FIXED_KEY, SAVE_IMAGES, CIPHERTEXTS
     global COMP
-    global NAME, NUM_TRACES, START_POINT, END_POINT, AVERAGE, NORM, NORM2, MIMO
+    global NUM_TRACES, START_POINT, END_POINT, AVERAGE, NORM, NORM2
     SAVE_IMAGES = save_images
     PLOT = plot
     WAIT = wait
@@ -248,21 +239,19 @@ def cli(data_path, num_traces, start_point, end_point, plot, save_images, wait, 
         raise Exception("Bruteforce not available for num_key_bytes != 16")
     BRUTEFORCE = bruteforce
     BIT_BOUND_END = bit_bound_end
-    KEYFILE = path.join(data_path, 'key_%s.txt' % name)
+    KEYFILE = path.join(data_path, 'key.txt')
     DATAPATH = data_path
     COMP = comp
 
-    NAME = name
     NUM_TRACES = num_traces
     START_POINT = start_point
     END_POINT = end_point
     AVERAGE = average
     NORM = norm
     NORM2 = norm2
-    MIMO = mimo
     
     FIXED_KEY, PLAINTEXTS, KEYS, TRACES = generic_load(
-        data_path, name, num_traces, start_point, end_point, average, norm, norm2, mimo, comp=COMP
+        data_path, num_traces, start_point, end_point, average, norm, norm2, comp=COMP
     )
     
     CIPHERTEXTS = list(map(aes, PLAINTEXTS, KEYS))
@@ -1247,7 +1236,7 @@ def attack_recombined(variable, pois_algo, num_pois, poi_spacing, template_dir,
         print("comp={}".format(comp))
         COMP = comp
         FIXED_KEY, PLAINTEXTS, KEYS, TRACES = generic_load(
-            DATAPATH, NAME, NUM_TRACES, START_POINT, END_POINT, AVERAGE, NORM, NORM2, MIMO, comp=comp
+            DATAPATH, NUM_TRACES, START_POINT, END_POINT, AVERAGE, NORM, NORM2, comp=comp
         )
         CIPHERTEXTS = list(map(aes, PLAINTEXTS, KEYS))
         PLAINTEXTS = np.asarray(PLAINTEXTS)
@@ -1555,7 +1544,6 @@ def cra():
             plt.plot(t,linewidth=0.5)
         avg = np.average(TRACES, axis=0)
         plt.plot(avg, 'b', linewidth=2, label="average")
-        # np.save("tpl_template.npy",avg)
         plt.xlabel("samples")
         plt.ylabel("normalized\namplitude")
         plt.legend()

@@ -10,6 +10,7 @@ import click
 # Internal import.
 from scaff import logger as l
 from scaff import config
+from scaff import helpers
 
 # * Command-line interface
 

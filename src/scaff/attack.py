@@ -178,7 +178,8 @@ def generic_load(data_path,number,wstart=0,wend=0, average=True,
                     keys.append(k[0])
                 else:
                     keys.append(k[i])
-    print("INFO: Number of empty traces: {}".format(empty))
+    if empty > 0:
+        ll.LOGGER.warn("Number of empty traces: {}".format(empty))
     traces = np.asarray(traces)
 
     # Apply z-score normalization on the set

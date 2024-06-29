@@ -1,0 +1,6 @@
+[scaff.loader]
+
+# Path from which data should be loaded or stored.
+data_path = ""
+# Pattern in which the first {} will be replaced by trace index.
+data_pattern = "{}_iq.npy"

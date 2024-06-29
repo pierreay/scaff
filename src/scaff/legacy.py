@@ -1,7 +1,5 @@
 #!/usr/bin/python3
 
-# TODO: Delete unused code.
-
 import click
 import numpy as np
 from matplotlib import pyplot as plt

@@ -11,7 +11,7 @@ import click
 from scaff import logger as l
 from scaff import config
 from scaff import helpers
-from scaff import attack
+from scaff import legacy
 
 # * Command-line interface
 
@@ -86,7 +86,7 @@ def profile(data_path, num_traces, start_point, end_point, plot, save_images, br
     will be overwritten!
 
     """
-    attack.profile(data_path, num_traces, start_point, end_point, plot, save_images, bruteforce, norm, norm2, comp, variable, lr_type, pois_algo, k_fold, num_pois, poi_spacing, pois_dir, align, fs, template_dir)
+    legacy.profile(data_path, num_traces, start_point, end_point, plot, save_images, bruteforce, norm, norm2, comp, variable, lr_type, pois_algo, k_fold, num_pois, poi_spacing, pois_dir, align, fs, template_dir)
 
 @cli.command()
 # Old-general:
@@ -142,7 +142,7 @@ def attack(data_path, num_traces, start_point, end_point, plot, save_images, bru
     The template directory is where we store multiple files comprising the
     template.
     """
-    attack.attack(data_path, num_traces, start_point, end_point, plot, save_images, bruteforce, norm, norm2, comp,
+    legacy.attack(data_path, num_traces, start_point, end_point, plot, save_images, bruteforce, norm, norm2, comp,
            variable, pois_algo, num_pois, poi_spacing, template_dir, attack_algo, k_fold, average_bytes, pooled_cov, window, align, fs)
 
 @cli.command()
@@ -195,7 +195,7 @@ def attack(data_path, num_traces, start_point, end_point, plot, save_images, bru
              help="Correlation recombination method [add | mul].")
 def attack_recombined(data_path, num_traces, start_point, end_point, plot, save_images, bruteforce, norm, norm2, comp,
         variable, pois_algo, num_pois, poi_spacing, template_dir, attack_algo, k_fold, average_bytes, pooled_cov, window, align, fs, corr_method):
-    attack.attack_recombined(data_path, num_traces, start_point, end_point, plot, save_images, bruteforce, norm, norm2, comp, variable, pois_algo, num_pois, poi_spacing, template_dir, attack_algo, k_fold, average_bytes, pooled_cov, window, align, fs, corr_method)
+    legacy.attack_recombined(data_path, num_traces, start_point, end_point, plot, save_images, bruteforce, norm, norm2, comp, variable, pois_algo, num_pois, poi_spacing, template_dir, attack_algo, k_fold, average_bytes, pooled_cov, window, align, fs, corr_method)
 
 # ** CCS18
 
@@ -239,7 +239,7 @@ def tra_create(data_path, num_traces, start_point, end_point, plot, save_images,
     The template directory is where we store multiple files comprising the
     template; beware that existing files will be overwritten!
     """
-    attack.tra_create(data_path, num_traces, start_point, end_point, plot, save_images, bruteforce, norm, norm2, comp, template_dir, num_pois, poi_spacing)
+    legacy.tra_create(data_path, num_traces, start_point, end_point, plot, save_images, bruteforce, norm, norm2, comp, template_dir, num_pois, poi_spacing)
 
 @cli.command()
 # Old-general:
@@ -275,7 +275,7 @@ def tra_attack(data_path, num_traces, start_point, end_point, plot, save_images,
     location of a previously created template with compatible settings (e.g.
     same trace length).
     """
-    attack.tra_attack(data_path, num_traces, start_point, end_point, plot, save_images, bruteforce, norm, norm2, comp, template_dir)
+    legacy.tra_attack(data_path, num_traces, start_point, end_point, plot, save_images, bruteforce, norm, norm2, comp, template_dir)
 
 @cli.command()
 # Old-general:
@@ -309,7 +309,7 @@ def cra(data_path, num_traces, start_point, end_point, plot, save_images, brutef
     power consumption of the SubBytes step in the first round of AES, using a
     Hamming-weight model.
     """
-    attack.cra(data_path, num_traces, start_point, end_point, plot, save_images, bruteforce, norm, norm2, comp)
+    legacy.cra(data_path, num_traces, start_point, end_point, plot, save_images, bruteforce, norm, norm2, comp)
 
 if __name__ == "__main__":
     cli()

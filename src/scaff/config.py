@@ -19,7 +19,7 @@ from scaff import logger as l
 # * Global variables
 
 # Reference to the AppConf object used to configure the application.
-CONFIG = None
+APPCONF = None
 
 # * Classes
 
@@ -33,8 +33,8 @@ class AppConf():
 
     def __init__(self, path):
         # Set the application-wide global variable to the last instanciated configuration.
-        global CONFIG
-        CONFIG = self
+        global APPCONF
+        APPCONF = self
         # Get parameters.
         self.path = path
         # Load the configuration file.
@@ -48,8 +48,8 @@ class AppConf():
 # * Functions
 
 def loaded():
-    return CONFIG is not None
+    return APPCONF is not None
 
 def get():
-    assert CONFIG is not None, "Configuration has not been loaded!"
-    return CONFIG.toml
+    assert APPCONF is not None, "Configuration has not been loaded!"
+    return APPCONF.toml

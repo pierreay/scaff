@@ -1,217 +1,256 @@
-class DatasetProcessing():
-    """Processing workflow using a Dataset.
+# * Importation
 
-    Allows to use friendly interface functions for scripting and advanced
-    processing functions (e.g. parallelization).
+# Standard import.
+import signal
+import os
+from os import path
+from multiprocessing import Process, Queue
+
+# External import.
+import numpy as np
+from matplotlib import pyplot as plt
+from tqdm import tqdm
+from tqdm.contrib.logging import logging_redirect_tqdm
+
+# Internal import.
+from scaff import logger as l
+from scaff import helpers
+
+# * Variables
+
+# Current running processor self-reference for signal handler.
+PROCESSOR = None
+
+# * Classes
+
+class ProcessingInterface():
+    """Processing to be applied on one element by a Processor."""
+
+    #  Processing title.
+    title = None
+    # Path for processing load.
+    load_path = None
+    # Loaded data.
+    load_data = None
+    # Path for processing save.
+    save_path = None
+    # Saved data.
+    save_data = None
+    
+    def __init__(self, load_path, save_path):
+        self.load_path = load_path
+        self.save_path = save_path
+
+    def load(self, i):
+        """Load data to process from disk for given index inside self.load_data.
+
+        :param i: Index of processing.
+
+        """
+        pass
+
+    def exec(self, plot_flag):
+        """Run the processing on loaded data and save the result inside self.save_data.
+
+        :param plot_flag: Flag indicating to plot the result.
+
+        """
+        pass
+
+    def save(self, i):
+        """Save data resulting of processing for given index to disk.
+
+        :param i: Index to processing.
+
+        """
+        pass
+
+    def plot(self, plot_flag):
+        """Plot data resulting of processing for given index."""
+        pass
+
+class ProcessingCopy(ProcessingInterface):
+    """Processing that copy one dataset from one location to another.
+
+    Created for demonstration purpose.
+
+    """
+    title = "Copy"
+    def load(self, i):
+        l.LOGGER.debug("[{}] Load data for index {}".format(type(self).__name__, i))
+        self.load_data = np.load(path.join(self.load_path, "{}_iq.npy".format(i)))
+    def exec(self, plot_flag):
+        l.LOGGER.debug("[{}] Exec processing for current index".format(type(self).__name__))
+        self.save_data = self.load_data
+        return True
+    def save(self, i):
+        l.LOGGER.debug("[{}] Save data for index {}".format(type(self).__name__, i))
+        np.save(path.join(self.save_path, "{}_iq.npy".format(i)), self.save_data)
+    def plot(self, plot_flag):
+        if plot_flag is True:
+            l.LOGGER.debug("[{}] Plot data for current index".format(type(self).__name__))
+            plt.plot(np.abs(self.save_data))
+            plt.show()
+
+class Processor():
+    """Processor allowing to apply a ProcessingInterface on several elements in parallel.
 
     Functions:
-    - resume: Resume from previous processing.
-    - create: Create a new processing.
-    - process: Execute the previously created processing.
-    - disable_plot: Disable the plot(s) for next processing.
+    - __init__: Create a new processing.
+    - start: Execute the previously created processing.
     - disable_parallel: Disable the processing parallelization.
     - restore_parallel: Restore the previous processing parallelization.
     - is_parallel: To know if parallelization is enabled.
 
     """
 
-    # * List all public variables.
-    # Dataset of the processing.
-    # NOTE: Mandatory to not be None.
-    dset = None
-    # Subset of the processing.
-    # NOTE: Mandatory to not be None.
-    sset = None
-    # Index of start trace for the processing.
-    start = 0
-    # Index of stop trace for the processing (-1 means infinite).
-    stop = -1
-    # Processing title.
-    process_title = None
-    # Processing function. Must have this signature:
-    # FUNC_NAME(dset, sset, plot, args)
-    # Where the FUNC_NAME can get supplementary arguments from the ARGS list/tuple.
-    process_fn = None
-    # Processing plotting switch (a PlotOnce class).
-    process_plot = None
-    # Processing function arguments.
-    process_args = None
-    # Processing number of workers.
+    # Index of start for the processing.
+    start_idx = None
+    # Index of stop for the processing (-1 means infinite).
+    stop_idx = None
+    # Processing class [ProcessingInterface].
+    processing = None
+    # Plotting switch [PlotOnce].
+    plot_once = None
+    # Number of workers.
     # < 0 = maximum available processes.
     # > 0 = specified number of processes.
     # 0 = no process, run sequentially.
-    process_nb = None
-    _process_nb = None # Backup.
+    ncpu = None
+    ncpu_bak = None # Backup to restore is needed.
+    # List of failed processes.
+    bad_list = None
 
-    def __init__(self, indir, subset, outdir=None, stop=-1):
-        """Initialize a dataset processing.
+    def __init__(self, processing, plot_once, ncpu=-1, stop_idx=-1):
+        """Initialize a processing.
 
-        Load a dataset from INDIR and load the SUBSET subset. If OUTDIR is not
-        None, set it as the savedir of the dataset. On error during the dataset
-        loading, quit the programm.
-
-        """
-        # Install the signal handler.
-        self.__signal_install()
-        # Get dataset and subset.
-        self.dset = Dataset.pickle_load(indir, quit_on_error=True)
-        self.sset = self.dset.get_subset(subset)
-        assert self.dset is not None and self.sset is not None
-        # Set the outdir directory for saving.
-        if outdir is not None:
-            self.dset.set_dirsave(outdir)
-        # Set stop trace.
-        if stop == -1:
-            self.stop = self.sset.get_nb_trace_ondisk()
-        else:
-            self.stop = stop
-        # Set the dirty flag to True after loading.
-        self.dset.dirty = True
-
-    def resume(self, from_zero=False):
-        """Resume the processing of a dataset...
-
-        If:
-        - The FROM_ZERO parameter is set to False.
-        - The DIRTY flag of the previsouly saved dataset is set to True.
-
-        By:
-        1. Fetching the template previously saved.
-        2. Fetching the bad entries previously saved.
-        3. Using the dirty idx previously saved as start index.
-
-        """
-        if from_zero is False and self.dset.get_savedir_dirty():
-            self.dset.resume_from_savedir(self.sset.subtype)
-            self.start = self.dset.dirty_idx
-            l.LOGGER.info("Resume at trace {} using template from previous processing".format(self.start))
-            l.LOGGER.debug("Template: shape={}".format(self.sset.template.shape))
-
-    def create(self, title, fn, plot, args, nb = -1):
-        """Create a processing.
-
-        The processing will be titled TITLE, running the function FN using the
-        plot switch PLOT and custom arguments ARGS.
+        It will run the ProcessingInterface using the plot switch PLOT.
 
         If NB is set to negative number, use the maximum number of workers. If
         set to a positive number, use this as number of workers. If set to 0,
         disable multi-process processing and use a single-process processing.
 
         """
-        assert isinstance(plot, libplot.PlotOnce), "plot parameter must be a PlotOnce class!"
-        self.process_title = title
-        self.process_fn = fn
-        self.process_plot = plot
-        self.process_args = args
-        if nb < 0:
-            self.process_nb = os.cpu_count() - 1
-            l.LOGGER.info("Automatically select {} processes for parallelization".format(self.process_nb))
+        assert isinstance(processing, ProcessingInterface), "Bad parameter class!"
+        assert isinstance(plot_once, helpers.ExecOnce), "Bad parameter class!"
+        # Initialize variables with default values.
+        self.start_idx = 0
+        self.bad_list = []
+        # Install the signal handler to properly quit.
+        self.__signal_install()
+        # Set stop index.
+        if stop_idx == -1:
+            # TODO: Implement a function detecting the number of indexes.
+            self.stop_idx = 999999
         else:
-            self.process_nb = nb
-        self._process_nb = self.process_nb
+            self.stop_idx = stop_idx
+        # Set number of CPUs.
+        if ncpu < 0:
+            self.ncpu = os.cpu_count() - 1
+            l.LOGGER.info("[{}] Select {} processes for parallelization".format(type(self).__name__, self.ncpu))
+        else:
+            self.ncpu = ncpu
+        self.ncpu_bak = self.ncpu
+        # Save other given parameters.
+        self.processing = processing
+        self.plot_once = plot_once
 
-    def process(self):
-        """Run the (parallelized) processing.
+    def start(self):
+        """Start the (parallelized) processing.
 
-        The processing must be configured using Dataset
-        Processing.create()
-        before to use this function.
+        As a best practice, the first processing may need to be executed in the
+        main process to modify an external object on which remaning processings
+        could rely on.
 
         """
-        # Check that self.create() function has been called.
-        assert self.process_title is not None
-        assert self.process_fn is not None
-        assert self.process_plot is not None
-        assert self.process_args is not None
-        assert self.process_nb >= 0
-        
-        def _init(i, stop):
-            """Initialize the processing starting at trace index I.
+        def _init(i, stop_idx):
+            """Initialize the processing starting at given index.
 
-            Return a tuple composed of the Queue for result transfer and a list
-            of processes.
+            :param i: Current processing index. 
+            :param stop_idx: Upper bound for i to execute the processing.
+            :returns: A tuple composed of the Queue for result transfer and a
+                      list of processes.
 
             """
-            # NOTE: The first processing needs to be executed in the main
-            # process to modify the dataset object. Remaning processings could
-            # rely on this one to get some parameters (e.g. the template
-            # signal).
+            # Disable parallelization for first processing.
             self.disable_parallel(i == 0)
             # Queue for transferring results from processing function (parallelized or not).
             q = Queue()
             # List of processes. Only create necessary processes.
-            ps_len = self.process_nb
-            if i + self.process_nb >= stop:
-                ps_len -= i + self.process_nb - stop
+            ps_len = self.ncpu
+            if i + self.ncpu >= stop_idx:
+                ps_len -= i + self.ncpu - stop_idx
             ps = [None] * ps_len
             # Initialize the processes if needed (but do not run them).
             for idx, _ in enumerate(ps):
-                l.LOGGER.debug("Create process index #{} for trace index #{}".format(idx, i + idx))
-                ps[idx] = Process(target=self.__process_fn, args=(q, self.dset, self.sset, i + idx, self.process_plot.pop(), self.process_args,))
+                l.LOGGER.debug("[{}] Process index #{} for processing index #{} is created!".format(type(self).__name__, idx, i + idx))
+                ps[idx] = Process(target=self.__process_fn, args=(q, i + idx, self.plot_once.pop(), self.processing))
             return q, ps
 
         def _run(i, q, ps):
-            """Run the processing starting at trace index I using the Queue Q
-            and the processes of list PS.
+            """Run the processing.
+
+            :param i: Processing index. 
+            :param q: Processing queue.
+            :param ps: Process list.
 
             """
-            # Create the processes and perform the parallelized processing...
+            # Create the processes and perform the parallelized processing, or...
             if self.is_parallel():
                 for idx, proc in enumerate(ps):
                     proc.start()
-                    l.LOGGER.debug("Started process: idx={}".format(idx))
+                    l.LOGGER.debug("[{}] Started process: idx={}".format(type(self).__name__, idx))
             # ...or perform process sequentially.
             else:
-                self.__process_fn(q, self.dset, self.sset, i, self.process_plot.pop(), self.process_args)
+                self.__process_fn(q, i, self.plot_once.pop(), self.processing)
 
         def _get(q, ps):
-            """Get the processing results using the Queue Q and the processes of list PS."""
+            """Get the processing results using the queue.
+
+            :param q: Processing queue.
+            :param ps: Process list.
+
+            """
             # Check the result.
             for _, __ in enumerate(ps):
-                l.LOGGER.debug("Wait result from queue...")
+                l.LOGGER.debug("[{}] Wait result from queue...".format(type(self).__name__))
                 check, i_processed = q.get()
                 if check is True:
-                    self.sset.bad_entries.append(i_processed)
+                    self.bad_list.append(i_processed)
 
         def _end(i_done, ps, pbar=None):
-            """Terminate the processing for trace index I_DONE.
+            """Terminate the processing for given index.
 
-            1. Update the processing loop information to prepare the next
-               processing.
-            2. Save the processing state in the dataset for further
-               resuming.
-            3. If parallelized, terminated the processing contained in
-               the PS list.
-            4. If specified, update TQDM's PBAR just like index I_DONE.
+            If parallelized, terminated the processing contained in the PS
+            list. If set, update tqdm's bar just like given index.
 
-            Return the new index I for next processing.
+            :param i_done: Finished processing index.
+            :param ps: Process list.
+            :param pbar: tqdm's bar.
+            :returns: Return the new index for next processing.
 
             """
             # Terminate the processes.
             for idx, proc in enumerate(ps):
-                l.LOGGER.debug("Join process... idx={}".format(idx))
+                l.LOGGER.debug("[{}] Join process... idx={}".format(type(self).__name__, idx))
                 proc.join()
             # Update the progress index and bar.
-            # NOTE: Handle case where process_nb == 0 for single-process processing.
-            i_step = len(ps) if self.process_nb > 0 else 1
+            i_step = len(ps) if self.ncpu > 0 else 1
             i = i_done + i_step
             pbar.update(i_step)
-            # Save dataset for resuming if not finishing the loop.
-            self.dset.dirty_idx = i
-            self.dset.pickle_dump(unload=False, log=False)
-            # Restore parallelization after first trace processing if needed.
-            # NOTE: Should be at the end since it will modify self.process_nb.
+            # Restore parallelization after first processing if needed.
+            # NOTE: Should be at the end since it will modify self.ncpu.
             self.restore_parallel(i_done == 0)
-            l.LOGGER.debug("Finished processing: trace #{} -> #{}".format(i_done, i - 1))
+            l.LOGGER.debug("[{}] Finished processing: index #{} -> #{}".format(type(self).__name__, i_done, i - 1))
             return i
             
         # Setup progress bar.
         with (logging_redirect_tqdm(loggers=[l.LOGGER]),
-              tqdm(initial=self.start, total=self.stop, desc=self.process_title) as pbar,):
-            i = self.start
-            while i < self.stop:
-                # Initialize processing for trace(s) starting at index i.
-                q, ps = _init(i, self.stop)
+              tqdm(initial=self.start_idx, total=self.stop_idx, desc=self.processing.title) as pbar,):
+            i = self.start_idx
+            while i < self.stop_idx:
+                # Initialize processing for indexes starting at index i.
+                q, ps = _init(i, self.stop_idx)
                 # Run the processing.
                 _run(i, q, ps)
                 # Get and check the results.
@@ -219,41 +258,40 @@ class DatasetProcessing():
                 # Terminate the processing.
                 i = _end(i, ps, pbar=pbar)
 
-    def disable_plot(self, cond=True):
-        """Disable the plotting parameter if COND is True."""
-        if cond is True and self.process_plot is True:
-            l.LOGGER.debug("Disable plotting for next processings")
-            self.process_plot = False
-
     def disable_parallel(self, cond=True):
-        """Disable the parallel processing if COND is True.
+        """Disable the parallel processing.
 
-        One can call restore_parallel() to restore the previous parallelization
-        value.
+        Inverse of this function is restore_parallel() to restore the previous
+        parallelization value.
+
+        :param cond: Must be True to execute the function.
 
         """
         if cond is True and self.is_parallel() is True:
-            l.LOGGER.debug("Disable parallelization for next processings")
-            self._process_nb = self.process_nb
-            self.process_nb = 0
+            l.LOGGER.debug("[{}] Disable parallelization for next processings!".format(type(self).__name__))
+            self.ncpu_bak = self.ncpu
+            self.ncpu = 0
 
     def restore_parallel(self, cond=True):
-        """Restore the process parallelization as before disable_parallel()
-        call if COND is True.
+        """Restore the process parallelization.
+
+        Will restore as before disable_parallel() call.
+
+        :param cond: Must be True to execute the function.
 
         """
         if cond is True and self.is_parallel(was=True):
-            l.LOGGER.debug("Restore previous parallelization value for next processings")
-            self.process_nb = self._process_nb
+            self.ncpu = self.ncpu_bak
+            l.LOGGER.debug("[{}] Restore {} processes for next processings!".format(type(self).__name__, self.ncpu))
 
     def is_parallel(self, was=False):
         """Return True if parallelization is enabled, False otherwise.
 
-        Set WAS to True to test against the value before the disable_parallel()
-        call.
+        :param was: If set to True, test against the value before the
+        disable_parallel() call.
 
         """
-        return self.process_nb > 0 if was is False else self._process_nb > 0
+        return self.ncpu > 0 if was is False else self.ncpu_bak > 0
 
     def __signal_install(self):
         """Install the signal handler.
@@ -261,49 +299,45 @@ class DatasetProcessing():
         Catch the SIGINT signal.
 
         """
-        global DPROC
-        DPROC = self
+        global PROCESSOR
+        PROCESSOR = self
         signal.signal(signal.SIGINT, self.__signal_handler)
 
-    def __process_fn(self, q, dset, sset, i, plot, args):
-        """Main function for processes.
+    def __process_fn(self, q, i, plot_flag, processing):
+        """Main function for processes of the Process class.
 
-        It is usually ran by a caller process from the self.process/_run()
-        function. It may be run in the main proces too. It will load a trace,
-        execute the processing based on the self.process_fn function pointer,
-        may check and plot the result, and save the resulting trace.
+        It is usually ran by a caller process from the Processor._run()
+        function. It may be run in the main proces too. It will load one index
+        value from the data, execute the processing, may check and plot the
+        result, and save the resulting data.
 
-        Q is a Queue to transmit the results, DSET a Dataset, SSET a Subset, I
-        the trace index to load and process, PLOT a flag indicating to plot the
-        result, and ARGS additionnal arguments transmitted to the
-        self.process_fn function.
+        :param q: Queue to transmit the results.
+        :param i: Index to load and process.
+        :param plot_flag: Flag indicating to plot the result.
+        :param processing: A ProcessingInterface class.
+
+        :raises: Can raise an exception if the first processing fail.
 
         """
-        l.LOGGER.debug("Start __process_fn() for trace #{}...".format(i))
-        # * Load the trace to process.
-        # NOTE: We choose to always load traces one by one since raw traces can
-        # be large (> 30 MB).
-        sset.load_trace(i, nf=False, ff=True, check=True, log=False)
-        # * Apply the processing and get the resulting trace.
-        # NOTE: ff can be None if the processing fails.
-        ff = self.process_fn(dset, sset, plot, args)
-        # * Check the trace is valid.
-        check = False
-        if i > 0:
-            check, ff_checked = analyze.fill_zeros_if_bad(sset.template, ff, log=True, log_idx=i)
-        elif i == 0 and ff is not None:
-            l.LOGGER.info("Trace #0 processing (e.g. creating a template) is assumed to be valid!")
-            ff_checked = ff
-        else:
-            raise Exception("Trace #0 processing encountered an error!")
-        sset.replace_trace(ff_checked, TraceType.FF)
-        # * Plot the averaged trace if wanted and processing succeed.
-        if sset.ff[0] is not None:
-            libplot.plot_time_spec_sync_axis(sset.ff[0:1], samp_rate=dset.samp_rate, cond=plot, comp=complex.CompType.AMPLITUDE)
-        # * Save the processed trace and transmit result to caller process.
-        sset.save_trace(nf=False, custom_dtype=False)
+        # Sanity-check.
+        assert isinstance(i, int) and isinstance(plot_flag, bool) and isinstance(processing, ProcessingInterface)
+        l.LOGGER.debug("[{}] Start __process_fn() for index #{}...".format(type(self).__name__, i))
+        # * Load the data to process.
+        processing.load(i)
+        # * Apply the processing and get the resulting data.
+        # NOTE: Return None if the processing fails.
+        result = processing.exec(plot_flag)
+        # * Check the processing is valid.
+        check = False if result is None else True
+        if check == False and i == 0:
+            raise Exception("First processing encountered an error!")
+        # * Plot the result if desired and processing succeed.
+        if check is True:
+            processing.plot(plot_flag)
+        # * Save the processed data and transmit result to caller process.
+        processing.save(i)
         q.put((check, i))
-        l.LOGGER.debug("End __process_fn() for trace #{}".format(i))
+        l.LOGGER.debug("[{}] End __process_fn() for index #{}".format(type(self).__name__, i))
 
     @staticmethod
     def __signal_handler(sig, frame):
@@ -313,12 +347,11 @@ class DatasetProcessing():
         by setting the stop index to 0.
 
         """
-        global DPROC
-        DPROC.stop = 0
+        global PROCESSOR
+        PROCESSOR.stop_idx = 0
 
     def __str__(self):
-        """Return the __str__ from the dataset."""
-        string = "dataset_processing:\n"
-        string += "- start: {}\n".format(self.start)
-        string += "- stop: {}\n".format(self.stop)
-        return string + self.dset.__str__()
+        string = "Processor:\n"
+        string += "\tstart_idx: {}\n".format(self.start_idx)
+        string += "\tstop_idx: {}\n".format(self.stop_idx)
+        return string + self.processing.__str__()

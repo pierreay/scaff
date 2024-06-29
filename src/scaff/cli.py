@@ -12,6 +12,7 @@ from scaff import logger as l
 from scaff import config
 from scaff import helpers
 from scaff import legacy
+from scaff import processors
 
 # * Command-line interface
 
@@ -32,6 +33,18 @@ def cli(config_path, log, loglevel):
                 raise e
         else:
             l.LOGGER.warn("Configuration file does not exists: {}".format(path.abspath(config_path)))
+
+
+# NOTE: Demonstration of ProcessingCopy.
+@cli.command()
+@click.argument("load_path", type=click.Path())
+@click.argument("save_path", type=click.Path())
+def copy(load_path, save_path):
+    """Copy traces of a dataset from one location to another."""
+    processor = processors.Processor(
+        processors.ProcessingCopy(load_path=load_path, save_path=save_path),
+        helpers.ExecOnce()
+    ).start()
 
 # ** CHES20
 

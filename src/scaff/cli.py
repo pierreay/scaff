@@ -3,6 +3,7 @@
 # * Importation
 
 # Standard import.
+from os import path
 
 # External import.
 import click
@@ -24,7 +25,7 @@ def cli(config_path, log, loglevel):
     """Side-channel analysis tool."""
     l.configure(log, loglevel)
     if config_path != "":
-        l.LOGGER.info("Configuration file loaded: {}".format(path.abspath(config_path)))
+        l.LOGGER.info("Load configuration file: {}".format(config_path))
         if path.exists(config_path):
             try:
                 config.AppConf(config_path)
@@ -32,7 +33,7 @@ def cli(config_path, log, loglevel):
                 l.LOGGER.error("Configuration file cannot be loaded: {}".format(path.abspath(config_path)))
                 raise e
         else:
-            l.LOGGER.warn("Configuration file does not exists: {}".format(path.abspath(config_path)))
+            l.LOGGER.warn("Configuration file does not exists: {}".format(config_path))
 
 
 # NOTE: Demonstration of ProcessingCopy.

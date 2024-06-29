@@ -18,9 +18,9 @@ dependencies = [
 
 # Scripts configuration.
 [project.scripts]
-# Will create a "scaff" Bash script targeting the "scaff" package, "mymod"
-# module, "main()" function.
-scaff = "scaff.attack:cli"
+# Will create a "scaff" Bash script targeting the "scaff" package, "cli"
+# module, "cli()" function.
+scaff = "scaff.cli:cli"
 
 # Package layout.
 # NOTE: Disabling the following options will enable the automatic package

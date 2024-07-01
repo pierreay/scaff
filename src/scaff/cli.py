@@ -4,6 +4,7 @@
 
 # Standard import.
 from os import path
+from functools import partial
 
 # External import.
 import click
@@ -14,6 +15,7 @@ from scaff import config
 from scaff import helpers
 from scaff import legacy
 from scaff import processors
+from scaff import io
 
 # * Command-line interface
 
@@ -60,10 +62,13 @@ def extract(load_path, save_path):
     if not path.exists(save_path):
         l.LOGGER.critical("Directory does not exists: {}".format(save_path))
         exit(1)
+    # Loader.
+    loader = io.IO(io.IOConf(config.APPCONF))
+    loader.conf.data_path = load_path
     # Processing.
     processing = processors.ProcessingExtract(load_path=load_path, save_path=save_path)
     processing.config = legacy.ExtractConf().load(config.APPCONF)
-    processor = processors.Processor(processing, helpers.ExecOnce()).start()
+    processor = processors.Processor(processing, helpers.ExecOnce(), stop=partial(loader.count)).start()
 
 # ** CHES20
 

@@ -49,8 +49,13 @@ class ProcessingInterface():
     save_data = None
     # Processing index.
     idx = None
+    # Set to True if Processing failed.
+    failed = None
     
     def __init__(self, load_path, save_path):
+        # Default values.
+        self.failed = False
+        # Get parameters.
         self.load_path = load_path
         self.save_path = save_path
 
@@ -64,6 +69,15 @@ class ProcessingInterface():
 
     def exec(self, plot_flag):
         """Run the processing on loaded data and save the result inside self.save_data.
+
+        :param plot_flag: Flag indicating to plot the result.
+        :returns: True if processing succeed, False if processing failed.
+
+        """
+        return self.failed == False
+
+    def on_error(self, plot_flag):
+        """Executed if the exec() function failed.
 
         :param plot_flag: Flag indicating to plot the result.
 
@@ -119,10 +133,12 @@ class ProcessingExtract(ProcessingInterface):
     template = None
     # Configuration.
     config = None
+
     def load(self, i):
         l.LOGGER.debug("[{}] Load data for index {}".format(type(self).__name__, i))
         self.load_data = np.load(path.join(self.load_path, "{}_iq.npy".format(i)))
         self.idx = i
+
     def exec(self, plot_flag):
         l.LOGGER.debug("[{}] Exec extraction for current index".format(type(self).__name__))
         # Create filters in an enabled or disabled state.
@@ -141,19 +157,28 @@ class ProcessingExtract(ProcessingInterface):
         else:
             average_file_name = None
         # Apply extraction.
-        self.save_data_amp, self.template, res_amp = legacy.extract(
-            trace_amp, self.template, self.config, average_file_name=average_file_name,
-        )
-        self.save_data_phr, self.template, res_phr = legacy.extract(
-            trace_phr, self.template, self.config, average_file_name=None, results_old=res_amp
-        )
-        # Plot results if asked.
-        if plot_flag is True:
-            legacy.plot_results(self.config, trace_amp, res_amp.trigger, res_amp.trigger_avg, res_amp.trace_starts, res_amp.traces,
-                                target_path=None, plot=False, savePlot=False, title="Amplitude", final=False)
-            legacy.plot_results(self.config, trace_phr, res_phr.trigger, res_phr.trigger_avg, res_phr.trace_starts, res_phr.traces,
-                                target_path=self.save_path, plot=plot_flag, savePlot=plot_flag, title="Phase rotation", final=True)
-        return True
+        try:
+            self.save_data_amp, self.template, res_amp = legacy.extract(
+                trace_amp, self.template, self.config, average_file_name=average_file_name,
+            )
+            self.save_data_phr, self.template, res_phr = legacy.extract(
+                trace_phr, self.template, self.config, average_file_name=None, results_old=res_amp
+            )
+            # Plot results if asked.
+            if plot_flag is True:
+                legacy.plot_results(self.config, trace_amp, res_amp.trigger, res_amp.trigger_avg, res_amp.trace_starts, res_amp.traces,
+                                    target_path=None, plot=False, savePlot=False, title="Amplitude", final=False)
+                legacy.plot_results(self.config, trace_phr, res_phr.trigger, res_phr.trigger_avg, res_phr.trace_starts, res_phr.traces,
+                                    target_path=self.save_path, plot=plot_flag, savePlot=plot_flag, title="Phase rotation", final=True)
+        except Exception as e:
+            l.LOGGER.error("Error during extraction processing: {}".format(e))
+            self.failed = True
+        return self.failed == False
+
+    def on_error(self, plot_flag):
+        self.save_data_amp = np.zeros(self.template.shape, dtype=self.template.dtype)
+        self.save_data_phr = np.zeros(self.template.shape, dtype=self.template.dtype)
+
     def save(self, i):
         l.LOGGER.debug("[{}] Save data for index {}".format(type(self).__name__, i))
         np.save(path.join(self.save_path, "{}_amp.npy".format(i)), self.save_data_amp)
@@ -399,18 +424,18 @@ class Processor():
         # Sanity-check.
         assert isinstance(i, int) and isinstance(plot_flag, bool) and isinstance(processing, ProcessingInterface)
         l.LOGGER.debug("[{}] Start __process_fn() for index #{}...".format(type(self).__name__, i))
-        # * Load the data to process.
+        # Load the data to process.
         processing.load(i)
-        # * Apply the processing and get the resulting data.
-        # NOTE: Return None if the processing fails.
-        result = processing.exec(plot_flag)
-        # * Check the processing is valid.
-        check = False if result is None else True
+        # Apply the processing.
+        check = processing.exec(plot_flag)
+        # Terminate the processing if the first one failed.
         if check == False and i == 0:
             raise Exception("First processing encountered an error!")
-        # * Plot the result if desired and processing succeed.
-        if check is True:
-            processing.plot(plot_flag)
+        # Execute the fallback if a processing failed but is not the first one.
+        elif check == False and i != 0:
+            processing.on_error(plot_flag)
+        # Plot the results if needed.
+        processing.plot(plot_flag)
         # * Save the processed data and transmit result to caller process.
         processing.save(i)
         q.put((check, i))

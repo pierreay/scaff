@@ -52,7 +52,8 @@ def copy(load_path, save_path):
 @cli.command()
 @click.argument("load_path", type=click.Path())
 @click.argument("save_path", type=click.Path())
-def extract(load_path, save_path):
+@click.option("--skip/--no-skip", "skip_flag", default=False, help="If set to True, disable any skip / filter configured for the extraction processing.")
+def extract(load_path, save_path, skip_flag):
     """Extract traces (amplitude and phase rotation) from signals (IQs)."""
     # Sanity-check.
     load_path = path.abspath(load_path)
@@ -66,10 +67,19 @@ def extract(load_path, save_path):
     # Loader.
     loader = io.IO(io.IOConf(config.APPCONF))
     loader.conf.data_path = load_path
-    # Processing.
+    # Processing configuration.
     processing = processors.ProcessingExtract(load_path=load_path, save_path=save_path)
     processing.config = legacy.ExtractConf().load(config.APPCONF)
-    processor = processors.Processor(processing, helpers.ExecOnce(), stop=partial(loader.count)).start()
+    # Configure according to CLI flags.
+    if skip_flag is True:
+        processing.config.num_traces_per_point_min = 0
+        processing.config.min_correlation = 0
+    # Processing execution.
+    try:
+        processor = processors.Processor(processing, helpers.ExecOnce(), stop=partial(loader.count)).start()
+    except Exception as e:
+        l.LOGGER.critical("Error during extraction processing: {}".format(e))
+        raise e
 
 @cli.command()
 @click.argument("target_path", type=str)

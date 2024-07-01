@@ -28,9 +28,10 @@ signal_length = 100e-6
 # Minimum correlation to keep the traces of a CO.
 min_correlation = 0
 
-[scaff.loader]
+[scaff.io]
 
-# Path from which data should be loaded or stored.
+# Path where data resides (for loading, storing, counting).
 data_path = ""
-# Pattern in which the first {} will be replaced by trace index.
+# Pattern of a data element in which the first {} will be replaced by index
+# number.
 data_pattern = "{}_iq.npy"

@@ -22,6 +22,7 @@ from tqdm.contrib.logging import logging_redirect_tqdm
 # Internal import.
 from scaff import logger as l
 from scaff import helpers
+from scaff import legacy
 
 # * Variables
 
@@ -97,6 +98,41 @@ class ProcessingCopy(ProcessingInterface):
         if plot_flag is True:
             l.LOGGER.debug("[{}] Plot data for current index".format(type(self).__name__))
             plt.plot(np.abs(self.save_data))
+            plt.show()
+
+class ProcessingExtract(ProcessingInterface):
+    """Processing that extract traces from IQs.
+
+    The traces are amplitude and phase rotation of the targeted part of the
+    AES. A template from the amplitude is used to align all the traces.
+    Optionally, post-processing (filters) can be applied on the traces before
+    saving.
+
+    """
+    title = "Extract"
+    # Template used for traces.
+    template = None
+    # Configuration.
+    config = None
+    def load(self, i):
+        l.LOGGER.debug("[{}] Load data for index {}".format(type(self).__name__, i))
+        self.load_data = np.load(path.join(self.load_path, "{}_iq.npy".format(i)))
+    def exec(self, plot_flag):
+        l.LOGGER.debug("[{}] Exec extraction for current index".format(type(self).__name__))
+        _, self.save_data_amp, self.save_data_phr, self.template = legacy.extract(
+            self.load_data, self.template, self.config, average_file_name=path.join(save_path, "template.npy"),
+            plot=plot_flag, target_path=self.save_path, savePlot=plot_flag
+        )
+        return True
+    def save(self, i):
+        l.LOGGER.debug("[{}] Save data for index {}".format(type(self).__name__, i))
+        np.save(path.join(self.save_path, "{}_phr.npy".format(i)), self.save_data_amp)
+        np.save(path.join(self.save_path, "{}_amp.npy".format(i)), self.save_data_phr)
+    def plot(self, plot_flag):
+        if plot_flag is True:
+            l.LOGGER.debug("[{}] Plot data for current index".format(type(self).__name__))
+            plt.plot(self.save_data_amp)
+            plt.plot(self.save_data_phr)
             plt.show()
 
 class Processor():

@@ -705,7 +705,7 @@ def extract(data, template, config, average_file_name=None, plot=False, target_p
     elif average_file_name:
         np.save(average_file_name, avg_amp)
 
-    return data, avg_amp, avg_phr
+    return data, avg_amp, avg_phr, template
 
 # * Attack
 

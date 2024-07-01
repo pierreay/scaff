@@ -126,8 +126,8 @@ class ProcessingExtract(ProcessingInterface):
         return True
     def save(self, i):
         l.LOGGER.debug("[{}] Save data for index {}".format(type(self).__name__, i))
-        np.save(path.join(self.save_path, "{}_phr.npy".format(i)), self.save_data_amp)
-        np.save(path.join(self.save_path, "{}_amp.npy".format(i)), self.save_data_phr)
+        np.save(path.join(self.save_path, "{}_amp.npy".format(i)), self.save_data_amp)
+        np.save(path.join(self.save_path, "{}_phr.npy".format(i)), self.save_data_phr)
     def plot(self, plot_flag):
         if plot_flag is True:
             l.LOGGER.debug("[{}] Plot data for current index".format(type(self).__name__))

@@ -23,6 +23,7 @@ from tqdm.contrib.logging import logging_redirect_tqdm
 from scaff import logger as l
 from scaff import helpers
 from scaff import legacy
+from scaff import dsp
 
 # * Variables
 
@@ -119,9 +120,19 @@ class ProcessingExtract(ProcessingInterface):
         self.load_data = np.load(path.join(self.load_path, "{}_iq.npy".format(i)))
     def exec(self, plot_flag):
         l.LOGGER.debug("[{}] Exec extraction for current index".format(type(self).__name__))
-        _, self.save_data_amp, self.save_data_phr, self.template = legacy.extract(
-            self.load_data, self.template, self.config, average_file_name=path.join(save_path, "template.npy"),
+        # Apply filters.
+        # TODO
+        # Create components.
+        trace_amp = np.absolute(self.load_data)
+        trace_phr = dsp.phase_rot(self.load_data)
+        # Apply extraction.
+        self.save_data_amp, self.template, res_amp = legacy.extract(
+            trace_amp, self.template, self.config, average_file_name=path.join(self.save_path, "template.npy"),
             plot=plot_flag, target_path=self.save_path, savePlot=plot_flag
+        )
+        self.save_data_phr, self.template, res_phr = legacy.extract(
+            trace_phr, self.template, self.config, average_file_name=None,
+            plot=False, target_path=None, savePlot=False, results_old=res_amp
         )
         return True
     def save(self, i):

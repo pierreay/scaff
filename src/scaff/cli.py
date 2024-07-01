@@ -36,7 +36,6 @@ def cli(config_path, log, loglevel):
             l.LOGGER.warn("Configuration file does not exists: {}".format(config_path))
 
 
-# NOTE: Demonstration of ProcessingCopy.
 @cli.command()
 @click.argument("load_path", type=click.Path())
 @click.argument("save_path", type=click.Path())
@@ -46,6 +45,16 @@ def copy(load_path, save_path):
         processors.ProcessingCopy(load_path=load_path, save_path=save_path),
         helpers.ExecOnce()
     ).start()
+
+@cli.command()
+@click.argument("load_path", type=click.Path())
+@click.argument("save_path", type=click.Path())
+def extract(load_path, save_path):
+    """Extract traces (amplitude and phase rotation) from signals (IQs)."""
+
+    processing = processors.ProcessingExtract(load_path=load_path, save_path=save_path)
+    processing.config = legacy.ExtractConf().load(config.APPCONF)
+    processor = processors.Processor(processing, helpers.ExecOnce()).start()
 
 # ** CHES20
 

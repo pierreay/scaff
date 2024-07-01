@@ -53,17 +53,21 @@ class ModuleConf():
     # Module name.
     _mod_name = None
 
-    def __init__(self, _name):
+    def __init__(self, name, appconf = None):
         """Initialize a module configuration.
 
-        :param _name: Should be the __name__ of the respective module.
+        :param name: Should be the __name__ of the respective module.
+        :param appconf: If set to an AppConf, run self.load(appconf).
 
         Usage in child classes:
-        super().__init__(__name__)
+        super().__init__(__name__, appconf)
 
         """
-        self._pkg_name = _name.split(".")[0]
-        self._mod_name = _name.split(".")[1]
+        assert appconf is None or isinstance(appconf, AppConf)
+        self._pkg_name = name.split(".")[0]
+        self._mod_name = name.split(".")[1]
+        if appconf is not None:
+            self.load(appconf)
     
     def get_dict(self, appconf):
         """Get module configuration from an AppConf.

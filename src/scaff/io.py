@@ -1,6 +1,6 @@
-"""Loader module.
+"""I/O module.
 
-The main purpose of loader.py is to provides facilities to load from / save to
+The main purpose of io.py is to provides facilities to load from / save to
 disk different kind of data.
 
 """
@@ -20,8 +20,8 @@ from scaff import config
 
 # * Classes
 
-class LoaderConf(config.ModuleConf):
-    """Configuration for the loader.py module."""
+class IOConf(config.ModuleConf):
+    """Configuration for the io.py module."""
 
     # Path from which data should be loaded or stored.
     data_path = None
@@ -42,25 +42,25 @@ class LoaderConf(config.ModuleConf):
         assert data_path is not None
         assert data_pattern is not None
 
-class Loader():
+class IO():
     """Load data from disk."""
 
-    # Configuration [LoaderConf].
+    # Configuration [IOConf].
     conf = None
 
     def __init__(self, conf):
-        assert isinstance(conf, LoaderConf)
+        assert isinstance(conf, IOConf)
         self.conf = conf
 
 if __name__ == "__main__":
-    # Configure the Loader from configuration file.
-    loadercnf, savercnf = loader.LoaderConf(), loader.LoaderConf()
+    # Configure the IO from configuration file.
+    iocnf, savercnf = io.IOConf(), io.IOConf()
     if config.loaded() is True:
-        loadercnf.load(config.APPCONF)
+        iocnf.load(config.APPCONF)
         savercnf.load(config.APPCONF)
-    # Configure the Loader from arguments.
-    loadercnf.data_path = load_path
+    # Configure the IO from arguments.
+    iocnf.data_path = load_path
     savercnf.data_path = load_path
-    # Create the Loader and the Saver.
-    loader = loader.Loader(loadercnf)
-    saver = loader.Loader(savercnf)    
+    # Create the IO and the Saver.
+    io = io.IO(iocnf)
+    saver = io.IO(savercnf)    

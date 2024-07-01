@@ -1,3 +1,33 @@
+[scaff.legacy]
+
+# Sampling rate of the recording [Hz].
+sampling_rate = 1e6
+# How many CO are contained in the recordings.
+# During averaging, it is the maximum to keep.
+num_traces_per_point = 10
+# How many CO are needed to validate a recording.
+# During extraction, it is the minimum to keep.
+num_traces_per_point_min = 1
+# Lower and upper cut-off frequencies of the band-pass filter used for
+# triggering.
+bandpass_lower = 1.0e6
+bandpass_upper = 2.0e6
+# Cut-off frequency of the low-pass filter applied on the trigger signal.
+lowpass_freq = 5e3
+# How much time to include before the trigger [s].
+# Shift signal left  = Shift window right -> Decrease offset.
+# Shift signal right = Shift window left  -> Increase offset.
+trigger_offset = 0
+# Set to True for triggering on a rising edge, False otherwise.
+trigger_rising = true
+# Threshold used for triggering instead of average.
+# May be set to 0 for auto-computation.
+trigger_threshold = 0
+# Length of the final trace starting at trigger - trigger_offset [s].
+signal_length = 100e-6
+# Minimum correlation to keep the traces of a CO.
+min_correlation = 0
+
 [scaff.loader]
 
 # Path from which data should be loaded or stored.

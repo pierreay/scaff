@@ -551,7 +551,7 @@ def plot_results(config, data, trigger, trigger_average, starts, traces, target_
 
         plt.clf()
 
-def find_starts(config, data, target_path, index):
+def find_starts(config, data):
     """
     Find the starts of interesting activity in the signal.
 
@@ -563,24 +563,12 @@ def find_starts(config, data, target_path, index):
         data, config["scaff"]["bandpass_lower"], config["scaff"]["bandpass_upper"],
         config["soapyrx"]["sampling_rate"], 6)
     
-    #TOM ADDITION START
-    #plt.clf()
-    #plt.plot(trigger)
-    #plt.savefig(target_path+"/"+str(index)+"_4-trigger-bandpass.png")
-    #TOM ADDITION END
-        
     trigger = np.absolute(trigger)
     # Use an SOS filter because the old one raised exception when using small
     # lowpass values:
     lpf = signal.butter(5, config["scaff"]["lowpass_freq"], 'low', fs=config["soapyrx"]["sampling_rate"], output='sos')
     trigger = np.array(signal.sosfilt(lpf, trigger), dtype=trigger.dtype)
     # trigger = butter_lowpass_filter(trigger, config["scaff"]["lowpass_freq"],config["soapyrx"]["sampling_rate"], 6)
-
-    #TOM ADDITION START
-    #plt.clf()
-    #plt.plot(trigger)
-    #plt.savefig(target_path+"/"+str(index)+"_5-trigger-lowpass.png")
-    #TOM ADDITION END
 
     # transient = 0.0005
     # start_idx = int(transient * config["soapyrx"]["sampling_rate"])
@@ -613,21 +601,9 @@ def find_starts(config, data, target_path, index):
     # if trigger_signal[0]:
     #     starts = np.insert(starts, 0, start_idx + offset)
 
-    #TOM ADDITION START
-    #plt.clf()
-    #plt.plot(trigger_signal)
-    #plt.savefig(target_path+"/"+str(index)+"_6-triggerstart.png")
-    #TOM ADDITION END
-
-
-    # plt.plot(data)
-    # plt.plot(trigger*100)
-    # plt.axhline(y=average*100)
-    # plt.show()
-
     return starts, trigger, average
 
-def extract(data, template, config, average_file_name=None, plot=False, target_path=None, savePlot=False, index=0):
+def extract(data, template, config, average_file_name=None, plot=False, target_path=None, savePlot=False):
     """Post-process an IQ signal to get a clean and well-aligned amplitude and
     phase rotation trace."""
     # Compute needed parameters.
@@ -646,7 +622,7 @@ def extract(data, template, config, average_file_name=None, plot=False, target_p
     # Create starts based on trigger frequency.x
     # NOTE: find_starts() will work with the amplitude, but we will use the
     # starts indexes against the raw I/Q.
-    trace_starts, trigger, trigger_avg = find_starts(config, data_amp, target_path, index)
+    trace_starts, trigger, trigger_avg = find_starts(config, data_amp)
 
     # Extract at trigger + autocorrelate with the template to align.
     traces_amp = [] # Extracted amplitude traces.

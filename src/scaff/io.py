@@ -1,13 +1,15 @@
 """I/O module.
 
-The main purpose of io.py is to provides facilities to load from / save to
-disk different kind of data.
+The main purpose of io.py is to provides facilities to handle different kind of
+data on disk (load, save, count).
 
 """
 
 # * Importation
 
 # Standard import.
+import sys
+from os import path
 
 # External import.
 import numpy as np
@@ -28,10 +30,12 @@ class IOConf(config.ModuleConf):
     # Pattern in which the first {} will be replaced by trace index.
     data_pattern = None
 
-    def __init__(self, data_path = None, data_pattern = None):
-        super().__init__(__name__)
+    def __init__(self, appconf = None, data_path = None, data_pattern = None):
+        super().__init__(__name__, appconf)
         self.data_path = data_path
         self.data_pattern = data_pattern
+        if appconf is not None:
+            self.load(appconf)
 
     def load(self, appconf):
         self.data_path = self.get_dict(appconf)["data_path"]
@@ -43,8 +47,6 @@ class IOConf(config.ModuleConf):
         assert data_pattern is not None
 
 class IO():
-    """Load data from disk."""
-
     # Configuration [IOConf].
     conf = None
 
@@ -52,15 +54,16 @@ class IO():
         assert isinstance(conf, IOConf)
         self.conf = conf
 
+    def count(self):
+        """Count the number of data stored on-disk (last index + 1)."""
+        for i in range(0, sys.maxsize):
+            if path.exists(path.join(self.conf.data_path, self.conf.data_pattern.format(i))):
+                continue
+            else:
+                return i
+            assert(i < 1e6), "Infinite loop?"
+
 if __name__ == "__main__":
-    # Configure the IO from configuration file.
-    iocnf, savercnf = io.IOConf(), io.IOConf()
-    if config.loaded() is True:
-        iocnf.load(config.APPCONF)
-        savercnf.load(config.APPCONF)
-    # Configure the IO from arguments.
-    iocnf.data_path = load_path
-    savercnf.data_path = load_path
-    # Create the IO and the Saver.
-    io = io.IO(iocnf)
-    saver = io.IO(savercnf)    
+    io = IO(IOConf(config.APPCONF))
+    io.conf.data_path = "/tmp/data_path"
+    import ipdb; ipdb.set_trace()

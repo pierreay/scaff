@@ -54,6 +54,14 @@ class IO():
         assert isinstance(conf, IOConf)
         self.conf = conf
 
+    def load(self, i):
+        """Load the data stored at given index.
+
+        :param i: Index of desired data.
+
+        """
+        return np.load(path.join(self.conf.data_path, self.conf.data_pattern.format(i)))
+
     def count(self):
         """Count the number of data stored on-disk (last index + 1)."""
         for i in range(0, sys.maxsize):

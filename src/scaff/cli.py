@@ -8,6 +8,7 @@ from functools import partial
 
 # External import.
 import click
+import matplotlib.pyplot as plt
 
 # Internal import.
 from scaff import logger as l
@@ -69,6 +70,31 @@ def extract(load_path, save_path):
     processing = processors.ProcessingExtract(load_path=load_path, save_path=save_path)
     processing.config = legacy.ExtractConf().load(config.APPCONF)
     processor = processors.Processor(processing, helpers.ExecOnce(), stop=partial(loader.count)).start()
+
+@cli.command()
+@click.argument("target_path", type=str)
+@click.argument("comp", type=str)
+@click.option("--base", type=int, default=0, show_default=True,
+              help="Base start index.")
+@click.option("--offset", type=int, default=0, show_default=True,
+              help="Added to base index to obtain end index.")
+@click.option("--cumulative/--no-cumulative", type=bool, default=False, show_default=True,
+              help="Show a cumulative plot or a single plot per traces.")
+def show(target_path, comp, base, offset, cumulative):
+    # Sanity-check.
+    target_path = path.abspath(target_path)
+    if not path.exists(target_path):
+        l.LOGGER.critical("Directory does not exists: {}".format(target_path))
+        exit(1)
+    # Loader.
+    loader = io.IO(io.IOConf(data_path=target_path, data_pattern="{{}}_{}.npy".format(comp)))
+    # Plotting.
+    for i in list(range(base, base + offset)):
+        plt.plot(loader.load(i))
+        if cumulative is False:
+            plt.show()
+    if cumulative is True:
+        plt.show()    
 
 # ** CHES20
 

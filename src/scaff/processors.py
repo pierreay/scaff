@@ -25,6 +25,7 @@ from scaff import logger as l
 from scaff import helpers
 from scaff import legacy
 from scaff import dsp
+from scaff import config
 
 # * Variables
 
@@ -124,11 +125,16 @@ class ProcessingExtract(ProcessingInterface):
         self.idx = i
     def exec(self, plot_flag):
         l.LOGGER.debug("[{}] Exec extraction for current index".format(type(self).__name__))
-        # Apply filters.
-        # TODO
-        # Create components.
-        trace_amp = np.absolute(self.load_data)
-        trace_phr = dsp.phase_rot(self.load_data)
+        # Create filters in an enabled or disabled state.
+        amp_filter = dsp.LHPFilter(
+            config.get()["processing_extract"]["filter_amp"]["type"], config.get()["processing_extract"]["filter_amp"]["cutoff"],
+            order=config.get()["processing_extract"]["filter_amp"]["order"], enabled=config.get()["processing_extract"]["filter_amp"]["en"])
+        phr_filter = dsp.LHPFilter(
+            config.get()["processing_extract"]["filter_phr"]["type"], config.get()["processing_extract"]["filter_phr"]["cutoff"],
+            order=config.get()["processing_extract"]["filter_phr"]["order"], enabled=config.get()["processing_extract"]["filter_phr"]["en"])
+        # Create components (maybe with IQ signal being filtered before).
+        trace_amp = np.absolute(amp_filter.apply(self.load_data, self.config.sampling_rate, force_dtype=True))
+        trace_phr = dsp.phase_rot(phr_filter.apply(self.load_data, self.config.sampling_rate, force_dtype=True))
         # Save a template only if first processing.
         if self.idx == 0:
             average_file_name = path.join(self.save_path, "template.npy")

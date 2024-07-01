@@ -35,3 +35,17 @@ data_path = ""
 # Pattern of a data element in which the first {} will be replaced by index
 # number.
 data_pattern = "{}_iq.npy"
+
+# Filter for amplitude trace applied on IQ signal during "ProcessingExtract".
+[scaff.processing_extract.filter_amp]
+en = true       # Enaling switch.
+type = "high"   # Filter type.
+cutoff = 500e3  # Cutoff frequency.
+order = 1       # Order.
+
+# Filter for phase rotation trace applied on IQ signal during "ProcessingExtract".
+[scaff.processing_extract.filter_phr]
+en = true       # Enaling switch.
+type = "low"    # Filter type.
+cutoff = 30e3   # Cutoff frequency.
+order = 1       # Order.

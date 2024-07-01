@@ -9,6 +9,7 @@ from functools import partial
 # External import.
 import click
 import matplotlib.pyplot as plt
+import numpy as np
 
 # Internal import.
 from scaff import logger as l
@@ -80,6 +81,9 @@ def extract(load_path, save_path, skip_flag):
     except Exception as e:
         l.LOGGER.critical("Error during extraction processing: {}".format(e))
         raise e
+    # Save bad list.
+    l.LOGGER.info("Save bad processing indexes to: {}".format(path.join(save_path), "bad_list.npy"))
+    np.save(path.join(save_path), "bad_list.npy", processor.bad_list)
 
 @cli.command()
 @click.argument("target_path", type=str)

@@ -359,6 +359,7 @@ class Processor():
                 _get(q, ps)
                 # Terminate the processing.
                 i = _end(i, ps, pbar=pbar)
+        return self
 
     def disable_parallel(self, cond=True):
         """Disable the parallel processing.

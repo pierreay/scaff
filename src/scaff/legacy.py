@@ -621,7 +621,7 @@ class ExtractRes():
         self.trace_starts_valid_shift = []
         self.traces = []
 
-def extract(trace, template, config, average_file_name=None, plot=False, target_path=None, savePlot=False, results_old=None):
+def extract(trace, template, config, average_file_name=None, results_old=None):
     """If results is an ExtractRes, reproduce the previous results on the given
     signal."""
     results_new = ExtractRes()

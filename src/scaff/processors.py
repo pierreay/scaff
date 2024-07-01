@@ -136,11 +136,9 @@ class ProcessingExtract(ProcessingInterface):
         # Apply extraction.
         self.save_data_amp, self.template, res_amp = legacy.extract(
             trace_amp, self.template, self.config, average_file_name=average_file_name,
-            plot=plot_flag, target_path=self.save_path, savePlot=plot_flag
         )
         self.save_data_phr, self.template, res_phr = legacy.extract(
-            trace_phr, self.template, self.config, average_file_name=None,
-            plot=False, target_path=None, savePlot=False, results_old=res_amp
+            trace_phr, self.template, self.config, average_file_name=None, results_old=res_amp
         )
         if plot_flag is True:
             legacy.plot_results(self.config, trace_amp, res_amp.trigger, res_amp.trigger_avg, res_amp.trace_starts, res_amp.traces,

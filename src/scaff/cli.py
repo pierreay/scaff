@@ -51,7 +51,16 @@ def copy(load_path, save_path):
 @click.argument("save_path", type=click.Path())
 def extract(load_path, save_path):
     """Extract traces (amplitude and phase rotation) from signals (IQs)."""
-
+    # Sanity-check.
+    load_path = path.abspath(load_path)
+    save_path = path.abspath(save_path)
+    if not path.exists(load_path):
+        l.LOGGER.critical("Directory does not exists: {}".format(load_path))
+        exit(1)
+    if not path.exists(save_path):
+        l.LOGGER.critical("Directory does not exists: {}".format(save_path))
+        exit(1)
+    # Processing.
     processing = processors.ProcessingExtract(load_path=load_path, save_path=save_path)
     processing.config = legacy.ExtractConf().load(config.APPCONF)
     processor = processors.Processor(processing, helpers.ExecOnce()).start()

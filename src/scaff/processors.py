@@ -12,6 +12,7 @@ import signal
 import os
 from os import path
 from multiprocessing import Process, Queue
+from functools import partial
 
 # External import.
 import numpy as np
@@ -186,29 +187,33 @@ class Processor():
     # List of failed processes.
     bad_list = None
 
-    def __init__(self, processing, plot_once, ncpu=-1, stop_idx=-1):
+    def __init__(self, processing, plot_once, ncpu=-1, stop=-1):
         """Initialize a processing.
 
         It will run the ProcessingInterface using the plot switch PLOT.
 
-        If NB is set to negative number, use the maximum number of workers. If
-        set to a positive number, use this as number of workers. If set to 0,
-        disable multi-process processing and use a single-process processing.
+        If NCPU is set to negative number, use the maximum number of workers.
+        If set to a positive number, use this as number of workers. If set to
+        0, disable multi-process processing and use a single-process
+        processing.
+
+        :param stop: If set to integer, use this as stop index. If set to
+        function reference (partial), execute it returning the stop index.
 
         """
         assert isinstance(processing, ProcessingInterface), "Bad parameter class!"
         assert isinstance(plot_once, helpers.ExecOnce), "Bad parameter class!"
+        assert (isinstance(stop, int) or isinstance(stop, partial)), "Bad parameter class!"
         # Initialize variables with default values.
         self.start_idx = 0
         self.bad_list = []
         # Install the signal handler to properly quit.
         self.__signal_install()
         # Set stop index.
-        if stop_idx == -1:
-            # TODO: Implement a function detecting the number of indexes.
-            self.stop_idx = 999999
-        else:
-            self.stop_idx = stop_idx
+        if isinstance(stop, int) is True:
+            self.stop_idx = stop
+        elif isinstance(stop, partial):
+            self.stop_idx = stop()
         # Set number of CPUs.
         if ncpu < 0:
             self.ncpu = os.cpu_count() - 1

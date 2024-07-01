@@ -22,6 +22,7 @@ from tqdm import tqdm
 
 from scaff import logger as l
 from scaff import config
+from scaff import dsp
 
 # * Analyze
 
@@ -188,31 +189,6 @@ def get_phase(traces):
     else:
         return traces
 
-def get_phase_rot(trace):
-    """Get the phase rotation of one or multiple traces."""
-    dtype_in = np.complex64
-    dtype_out = np.float32
-    assert type(trace) == np.ndarray
-    assert trace.dtype == dtype_in
-    if trace.ndim == 1:
-        # NOTE: Phase rotation from expe/240201/56msps.py without filter:
-        # Compute unwraped (remove modulos) instantaneous phase.
-        trace = np.unwrap(np.angle(trace))
-        # Set the signal relative to 0.
-        trace = [trace[i] - trace[0] for i in range(len(trace))]
-        # Compute the phase rotation of instantenous phase.
-        # NOTE: Manually add first [0] sample.
-        trace = [0] + [trace[i] - trace[i - 1] for i in range(1, len(trace), 1)]
-        # Convert back to np.ndarray.
-        trace = np.array(trace, dtype=dtype_out)
-        assert trace.dtype == dtype_out
-        return trace
-    elif trace.ndim == 2:
-        trace_rot = np.empty_like(trace, dtype=dtype_out)
-        for ti, tv in enumerate(trace):
-            trace_rot[ti] = get_phase_rot(tv)
-        return trace_rot
-
 def get_comp(traces, comp):
     """Get a choosen component.
 
@@ -231,7 +207,7 @@ def get_comp(traces, comp):
     elif (type(comp) == CompType and comp == CompType.PHASE) or (type(comp) == str and CompType[comp] == CompType.PHASE):
         return get_phase(traces)
     elif (type(comp) == CompType and comp == CompType.PHASE_ROT) or (type(comp) == str and CompType[comp] == CompType.PHASE_ROT):
-        return get_phase_rot(traces)
+        return dsp.phase_rot(traces)
     assert False, "Bad COMP string!"
 
 def is_p2r_ready(radii, angles):
@@ -625,87 +601,107 @@ class ExtractConf(config.ModuleConf):
         # NOTE: Allows chaining.
         return self
 
-def extract(data, template, config, average_file_name=None, plot=False, target_path=None, savePlot=False):
-    """Post-process an IQ signal to get a clean and well-aligned amplitude and
-    phase rotation trace."""
+class ExtractRes():
+    """Result of an extract() function to re-apply on another signal."""
+    trace_starts = None
+    trace_starts_valid = None
+    trace_starts_valid_shift = None
+    trigger = None
+    trigger_avg = None
+    # Number of skipped starts.
+    skip_nb = None
+    # Correlations coefficients stats (during autocorrelation).
+    corrs = None
+    def __init__(self):
+        self.skip_nb = 0
+        self.corrs = []
+        self.trace_starts_valid = []
+        self.trace_starts_valid_shift = []
+
+def extract(trace, template, config, average_file_name=None, plot=False, target_path=None, savePlot=False, results_old=None):
+    """If results is an ExtractRes, reproduce the previous results on the given
+    signal."""
+    results_new = ExtractRes()
     # Compute needed parameters.
     # Length of a trace.
     trace_length = int(config.signal_length * config.sampling_rate)
     num_traces_per_point = config.num_traces_per_point
     # Sanity-check.
-    if len(data) == 0:
+    if len(trace) == 0:
         raise Exception("Empty data!")
     if template is not None and len(template) != trace_length:
         raise Exception("Template length doesn't match collection parameters: {} != {}".format(len(template), trace_length))
-    # Get signal components.
-    data_amp = np.absolute(data)
-    data_phr = get_phase_rot(data)
 
-    # Create starts based on trigger frequency.x
-    # NOTE: find_starts() will work with the amplitude, but we will use the
-    # starts indexes against the raw I/Q.
-    trace_starts, trigger, trigger_avg = find_starts(config, data_amp)
+    # Create starts based on trigger frequency or restore previous trace starts.
+    if results_old is None:
+        results_new.trace_starts, results_new.trigger, results_new.trigger_avg = find_starts(config, trace)
+    else:
+        results_new.trace_starts = results_old.trace_starts_valid
 
     # Extract at trigger + autocorrelate with the template to align.
-    traces_amp = [] # Extracted amplitude traces.
-    traces_phr = [] # Extracted phase rotation traces.
-    skip_nb = 0     # Number of skipped starts.
-    corrs = []      # Correlations coefficients stats (during autocorrelation).
-    for start_idx, start in enumerate(trace_starts):
+    traces = [] # Extracted traces.
+    for start_idx, start in enumerate(results_new.trace_starts):
         stop = start + trace_length
         # Don't try to extract more traces than configured AES.
-        if len(traces_amp) >= num_traces_per_point:
+        if len(traces) >= num_traces_per_point:
             break
         # Don't try to extract out of the trace index.
-        if stop > len(data_amp):
+        if stop > len(trace):
             break
         # Compute current trace candidate.
-        trace_amp = data_amp[start:stop]
+        trace_candidate = trace[start:stop]
         # If template is not provided, use the first trace instead.
         if template is None or len(template) == 0:
             l.LOGGER.debug("Use first trace as template!")
-            template = trace_amp
+            template = trace_candidate
             continue
-        # Perform the autocorrelation between trace candidate and template.
-        trace_lpf    = butter_lowpass_filter(trace_amp, config.sampling_rate / 4, config.sampling_rate)
-        template_lpf = butter_lowpass_filter(template, config.sampling_rate  / 4, config.sampling_rate)
-        # NOTE: Arbitrary but gives better alignment result.
-        correlation = signal.correlate(trace_lpf ** 2, template_lpf ** 2)
-        # correlation = signal.correlate(trace_lpf, template_lpf)
-        corrs.append(max(correlation))
-        # Check correlation if required.
-        if config.min_correlation > 0 and max(correlation) < config.min_correlation:
-            l.LOGGER.debug("Skip trace start: {} < {}".format(max(correlation), config.min_correlation))
-            skip_nb += 1
-            continue
+        # If this is not a result re-usage, perform the checks and extract based on correlation.
+        if results_old is None:
+            # Perform the autocorrelation between trace candidate and template.
+            trace_lpf    = butter_lowpass_filter(trace_candidate, config.sampling_rate / 4, config.sampling_rate)
+            template_lpf = butter_lowpass_filter(template, config.sampling_rate  / 4, config.sampling_rate)
+            # NOTE: Arbitrary but gives better alignment result.
+            correlation = signal.correlate(trace_lpf ** 2, template_lpf ** 2)
+            # correlation = signal.correlate(trace_lpf, template_lpf)
+            results_new.corrs.append(max(correlation))
+            # Check correlation if required.
+            if config.min_correlation > 0 and max(correlation) < config.min_correlation:
+                l.LOGGER.debug("Skip trace start: {} < {}".format(max(correlation), config.min_correlation))
+                results_new.skip_nb += 1
+                continue
+            # Compute the shift based on correlation.
+            shift = np.argmax(correlation) - (len(template) - 1)
+        else:
+            shift = results_old.trace_starts_valid_shift[start_idx]
+        # Save computed or restored start index and shift value.
+        results_new.trace_starts_valid.append(start)
+        results_new.trace_starts_valid_shift.append(shift)
         # Save extracted traces.
-        shift = np.argmax(correlation) - (len(template) - 1)
-        traces_amp.append(data_amp[start + shift : stop + shift])
-        traces_phr.append(data_phr[start + shift : stop + shift])
+        traces.append(trace[start + shift : stop + shift])
 
     # Average the extracted traces.
-    avg_amp = np.average(traces_amp, axis=0)
-    avg_phr = np.average(traces_phr, axis=0)
+    avg = np.average(traces, axis=0)
 
     # Print the results.
-    l.LOGGER.info("num_traces_per_point > starts > extracted > min ; skip_by_corr : {} > {} > {} > {} ; {}".format(num_traces_per_point, len(trace_starts), len(traces_amp), config.num_traces_per_point_min, skip_nb))
-    if len(corrs) != 0:
-        l.LOGGER.info("percentile(corrs) : 1% / 5% / 10% / 25% : {:.2e} / {:.2e} / {:.2e} / {:.2e}".format(np.percentile(corrs, 1), np.percentile(corrs, 5), np.percentile(corrs, 10), np.percentile(corrs, 25)))
+    l.LOGGER.info("num_traces_per_point > starts > extracted > min ; skip_by_corr : {} > {} > {} > {} ; {}".format(num_traces_per_point, len(results_new.trace_starts), len(traces), config.num_traces_per_point_min, results_new.skip_nb))
+    if len(results_new.corrs) != 0:
+        l.LOGGER.info("percentile(corrs) : 1% / 5% / 10% / 25% : {:.2e} / {:.2e} / {:.2e} / {:.2e}".format(np.percentile(results_new.corrs, 1), np.percentile(results_new.corrs, 5), np.percentile(results_new.corrs, 10), np.percentile(results_new.corrs, 25)))
 
     # Plot the results.
     if plot or savePlot:
-        plot_results(config, data_amp, trigger, trigger_avg, trace_starts, traces_amp, target_path, plot, savePlot, "amp", final=False)
-        plot_results(config, data_phr, trigger, trigger_avg, trace_starts, traces_phr, target_path, plot, savePlot, "phr", final=True)
+        plot_results(config, trace, results_new.trigger, results_new.trigger_avg, results_new.trace_starts, traces, target_path, plot, savePlot, "amp or phr", final=True)
 
-    # Check for errors, otherwise, save averaged amplitude trace.
-    if (np.shape(avg_amp) == () or np.shape(avg_phr) == ()):
+    # Check for errors.
+    if np.shape(avg) == ():
         raise Exception("Trigger or correlation configuration excluded all starts!")
-    elif len(traces_amp) < config.num_traces_per_point_min:
-        raise Exception("Not enough traces have been averaged: {} < {}".format(len(traces_amp), config.num_traces_per_point_min))
-    elif average_file_name:
-        np.save(average_file_name, avg_amp)
+    elif len(traces) < config.num_traces_per_point_min:
+        raise Exception("Not enough traces have been averaged: {} < {}".format(len(traces), config.num_traces_per_point_min))
 
-    return data, avg_amp, avg_phr, template
+    # If desired, save average file (for a future template).
+    if average_file_name is not None:
+        np.save(average_file_name, avg)
+
+    return avg, template, results_new
 
 # * Attack
 

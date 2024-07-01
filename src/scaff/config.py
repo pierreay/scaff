@@ -95,5 +95,6 @@ def loaded():
     return APPCONF is not None
 
 def get():
+    """Return TOML dictionnary entry corresponding to our application."""
     assert APPCONF is not None, "Configuration has not been loaded!"
-    return APPCONF.toml
+    return APPCONF.toml["scaff"]

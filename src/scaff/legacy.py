@@ -608,6 +608,8 @@ class ExtractRes():
     trace_starts_valid_shift = None
     trigger = None
     trigger_avg = None
+    # Extracted traces.
+    traces = None
     # Number of skipped starts.
     skip_nb = None
     # Correlations coefficients stats (during autocorrelation).
@@ -617,6 +619,7 @@ class ExtractRes():
         self.corrs = []
         self.trace_starts_valid = []
         self.trace_starts_valid_shift = []
+        self.traces = []
 
 def extract(trace, template, config, average_file_name=None, plot=False, target_path=None, savePlot=False, results_old=None):
     """If results is an ExtractRes, reproduce the previous results on the given
@@ -637,13 +640,14 @@ def extract(trace, template, config, average_file_name=None, plot=False, target_
         results_new.trace_starts, results_new.trigger, results_new.trigger_avg = find_starts(config, trace)
     else:
         results_new.trace_starts = results_old.trace_starts_valid
+        results_new.trigger = results_old.trigger
+        results_new.trigger_avg = results_old.trigger_avg
 
     # Extract at trigger + autocorrelate with the template to align.
-    traces = [] # Extracted traces.
     for start_idx, start in enumerate(results_new.trace_starts):
         stop = start + trace_length
         # Don't try to extract more traces than configured AES.
-        if len(traces) >= num_traces_per_point:
+        if len(results_new.traces) >= num_traces_per_point:
             break
         # Don't try to extract out of the trace index.
         if stop > len(trace):
@@ -677,25 +681,21 @@ def extract(trace, template, config, average_file_name=None, plot=False, target_
         results_new.trace_starts_valid.append(start)
         results_new.trace_starts_valid_shift.append(shift)
         # Save extracted traces.
-        traces.append(trace[start + shift : stop + shift])
+        results_new.traces.append(trace[start + shift : stop + shift])
 
     # Average the extracted traces.
-    avg = np.average(traces, axis=0)
+    avg = np.average(results_new.traces, axis=0)
 
     # Print the results.
-    l.LOGGER.info("num_traces_per_point > starts > extracted > min ; skip_by_corr : {} > {} > {} > {} ; {}".format(num_traces_per_point, len(results_new.trace_starts), len(traces), config.num_traces_per_point_min, results_new.skip_nb))
+    l.LOGGER.info("num_traces_per_point > starts > extracted > min ; skip_by_corr : {} > {} > {} > {} ; {}".format(num_traces_per_point, len(results_new.trace_starts), len(results_new.traces), config.num_traces_per_point_min, results_new.skip_nb))
     if len(results_new.corrs) != 0:
         l.LOGGER.info("percentile(corrs) : 1% / 5% / 10% / 25% : {:.2e} / {:.2e} / {:.2e} / {:.2e}".format(np.percentile(results_new.corrs, 1), np.percentile(results_new.corrs, 5), np.percentile(results_new.corrs, 10), np.percentile(results_new.corrs, 25)))
-
-    # Plot the results.
-    if plot or savePlot:
-        plot_results(config, trace, results_new.trigger, results_new.trigger_avg, results_new.trace_starts, traces, target_path, plot, savePlot, "amp or phr", final=True)
 
     # Check for errors.
     if np.shape(avg) == ():
         raise Exception("Trigger or correlation configuration excluded all starts!")
-    elif len(traces) < config.num_traces_per_point_min:
-        raise Exception("Not enough traces have been averaged: {} < {}".format(len(traces), config.num_traces_per_point_min))
+    elif len(results_new.traces) < config.num_traces_per_point_min:
+        raise Exception("Not enough traces have been averaged: {} < {}".format(len(results_new.traces), config.num_traces_per_point_min))
 
     # If desired, save average file (for a future template).
     if average_file_name is not None:

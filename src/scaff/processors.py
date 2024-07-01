@@ -142,6 +142,11 @@ class ProcessingExtract(ProcessingInterface):
             trace_phr, self.template, self.config, average_file_name=None,
             plot=False, target_path=None, savePlot=False, results_old=res_amp
         )
+        if plot_flag is True:
+            legacy.plot_results(self.config, trace_amp, res_amp.trigger, res_amp.trigger_avg, res_amp.trace_starts, res_amp.traces,
+                                target_path=None, plot=False, savePlot=False, title="amp", final=False)
+            legacy.plot_results(self.config, trace_phr, res_phr.trigger, res_phr.trigger_avg, res_phr.trace_starts, res_phr.traces,
+                                target_path=self.save_path, plot=plot_flag, savePlot=plot_flag, title="phr", final=True)
         return True
     def save(self, i):
         l.LOGGER.debug("[{}] Save data for index {}".format(type(self).__name__, i))

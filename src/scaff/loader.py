@@ -51,3 +51,16 @@ class Loader():
     def __init__(self, conf):
         assert isinstance(conf, LoaderConf)
         self.conf = conf
+
+if __name__ == "__main__":
+    # Configure the Loader from configuration file.
+    loadercnf, savercnf = loader.LoaderConf(), loader.LoaderConf()
+    if config.loaded() is True:
+        loadercnf.load(config.APPCONF)
+        savercnf.load(config.APPCONF)
+    # Configure the Loader from arguments.
+    loadercnf.data_path = load_path
+    savercnf.data_path = load_path
+    # Create the Loader and the Saver.
+    loader = loader.Loader(loadercnf)
+    saver = loader.Loader(savercnf)    

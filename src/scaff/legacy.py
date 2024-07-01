@@ -699,6 +699,7 @@ def extract(trace, template, config, average_file_name=None, plot=False, target_
 
     # If desired, save average file (for a future template).
     if average_file_name is not None:
+        l.LOGGER.info("Save template to: {}".format(average_file_name))
         np.save(average_file_name, avg)
 
     return avg, template, results_new

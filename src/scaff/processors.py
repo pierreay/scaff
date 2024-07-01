@@ -45,6 +45,8 @@ class ProcessingInterface():
     save_path = None
     # Saved data.
     save_data = None
+    # Processing index.
+    idx = None
     
     def __init__(self, load_path, save_path):
         self.load_path = load_path
@@ -118,6 +120,7 @@ class ProcessingExtract(ProcessingInterface):
     def load(self, i):
         l.LOGGER.debug("[{}] Load data for index {}".format(type(self).__name__, i))
         self.load_data = np.load(path.join(self.load_path, "{}_iq.npy".format(i)))
+        self.idx = i
     def exec(self, plot_flag):
         l.LOGGER.debug("[{}] Exec extraction for current index".format(type(self).__name__))
         # Apply filters.
@@ -125,9 +128,14 @@ class ProcessingExtract(ProcessingInterface):
         # Create components.
         trace_amp = np.absolute(self.load_data)
         trace_phr = dsp.phase_rot(self.load_data)
+        # Save a template only if first processing.
+        if self.idx == 0:
+            average_file_name = path.join(self.save_path, "template.npy")
+        else:
+            average_file_name = None
         # Apply extraction.
         self.save_data_amp, self.template, res_amp = legacy.extract(
-            trace_amp, self.template, self.config, average_file_name=path.join(self.save_path, "template.npy"),
+            trace_amp, self.template, self.config, average_file_name=average_file_name,
             plot=plot_flag, target_path=self.save_path, savePlot=plot_flag
         )
         self.save_data_phr, self.template, res_phr = legacy.extract(

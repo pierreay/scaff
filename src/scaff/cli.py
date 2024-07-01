@@ -91,6 +91,7 @@ def extract(load_path, save_path, skip_flag):
 @click.option("--cumulative/--no-cumulative", type=bool, default=False, show_default=True,
               help="Show a cumulative plot or a single plot per traces.")
 def show(target_path, comp, base, offset, cumulative):
+    """Show plots of traces from a dataset."""
     # Sanity-check.
     target_path = path.abspath(target_path)
     if not path.exists(target_path):

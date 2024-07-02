@@ -82,8 +82,8 @@ def extract(load_path, save_path, skip_flag):
         l.LOGGER.critical("Error during extraction processing: {}".format(e))
         raise e
     # Save bad list.
-    l.LOGGER.info("Save bad processing indexes to: {}".format(path.join(save_path), "bad_list.npy"))
-    np.save(path.join(save_path), "bad_list.npy", processor.bad_list)
+    l.LOGGER.info("Save bad processing indexes to: {}".format(path.join(save_path, "bad_list.npy")))
+    np.save(path.join(save_path, "bad_list.npy"), processor.bad_list)
 
 @cli.command()
 @click.argument("target_path", type=str)

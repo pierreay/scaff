@@ -133,26 +133,11 @@ class ProcessingExtract(ProcessingInterface):
     template = None
     # Extraction configuration [ExtractConf].
     config = None
-    # If set to a name, use the defined filter in the configuration file.
-    filter_name = None
-
-    def _init_filter(self):
-        """Initialize filters used during self.exec() function."""
-        if self.filter_name is not None:
-            self.amp_filter = dsp.LHPFilter(
-                config.get()["processing_extract"][self.filter_name]["filter_amp"]["type"],
-                config.get()["processing_extract"][self.filter_name]["filter_amp"]["cutoff"],
-                order=config.get()["processing_extract"][self.filter_name]["filter_amp"]["order"],
-                enabled=config.get()["processing_extract"][self.filter_name]["filter_amp"]["en"])
-            self.phr_filter = dsp.LHPFilter(
-                config.get()["processing_extract"][self.filter_name]["filter_phr"]["type"],
-                config.get()["processing_extract"][self.filter_name]["filter_phr"]["cutoff"],
-                order=config.get()["processing_extract"][self.filter_name]["filter_phr"]["order"],
-                enabled=config.get()["processing_extract"][self.filter_name]["filter_phr"]["en"])
-        # Dummy disabled filters.
-        else:
-            self.amp_filter = dsp.LHPFilter("low", 0, enabled=False)
-            self.phr_filter = dsp.LHPFilter("low", 0, enabled=False)
+    # If set to a filter by an external code [LHPFilter], it will be applied on
+    # the IQ signal for trace extraction/alignement/averaging (but not for
+    # triggering).
+    filter_amp = None
+    filter_phr = None
 
     def load(self, i):
         l.LOGGER.debug("[{}] Load data for index {}".format(type(self).__name__, i))
@@ -161,21 +146,21 @@ class ProcessingExtract(ProcessingInterface):
 
     def exec(self, plot_flag):
         l.LOGGER.debug("[{}] Exec extraction for current index".format(type(self).__name__))
-        # Create filters in an enabled or disabled state.
-        self._init_filter()
         # Save a template only if first processing.
         if self.idx == 0:
             average_file_name = path.join(self.save_path, "template.npy")
         else:
             average_file_name = None
-        # Create components (maybe with IQ signal being filtered before).
+        # Create unfiltered and filtered components.
         trace_amp = np.absolute(self.load_data)
         trace_phr = dsp.phase_rot(self.load_data)
-        trace_amp_filt = np.absolute(self.amp_filter.apply(self.load_data, self.config.sampling_rate, force_dtype=True))
-        trace_phr_filt = dsp.phase_rot(self.phr_filter.apply(self.load_data, self.config.sampling_rate, force_dtype=True))
+        if self.filter_amp is not None:
+            trace_amp_filt = np.absolute(self.filter_amp.apply(self.load_data, self.config.sampling_rate, force_dtype=True))
+        if self.filter_phr is not None:
+            trace_phr_filt = dsp.phase_rot(self.filter_phr.apply(self.load_data, self.config.sampling_rate, force_dtype=True))
         # Try one extraction on unfiltered amplitude to perform the triggering.
         try:
-            _, self.template, res_amp = legacy.extract(
+            self.save_data_amp, self.template, res_amp = legacy.extract(
                 trace_amp, self.template, self.config, average_file_name=average_file_name,
             )
         except Exception as e:
@@ -183,11 +168,12 @@ class ProcessingExtract(ProcessingInterface):
             self.failed = True
         # Re-execute extractions with potentially filtered signals and with
         # phase rotation using previous results.
-        self.save_data_amp, _, _ = legacy.extract(
-            trace_amp_filt, self.template, self.config, average_file_name=average_file_name, results_old=res_amp
-        )
+        if self.filter_amp is not None:
+            self.save_data_amp, _, res_amp = legacy.extract(
+                trace_amp_filt, self.template, self.config, average_file_name=average_file_name, results_old=res_amp
+            )
         self.save_data_phr, _, res_phr = legacy.extract(
-            trace_phr_filt, self.template, self.config, average_file_name=None, results_old=res_amp
+            trace_phr if self.filter_phr is None else trace_phr_filt, self.template, self.config, average_file_name=None, results_old=res_amp
         )
         # Plot results if asked.
         if plot_flag is True:

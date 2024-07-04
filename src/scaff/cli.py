@@ -58,8 +58,7 @@ def copy(load_path, save_path):
 @click.option("--avg-max", "avg_max_nb", default=0, help="If set to a positive number, use this as maximum number of trace when averaging. If set to 1, disable averaging and perform an extraction only.")
 @click.option("--corr-min", "corr_min_nb", type=float, default=0, help="If set to a positive number, use this as minimum correlation to validate trace candidate.")
 @click.option("--cpu", "ncpu", default=-1, help="If set to a positive number, use this as number of processes for parallelization.")
-@click.option("--filter-name", default="", help="If set to a name, use the corresponding filter defined in configuration file.")
-def extract(load_path, save_path, skip_flag, avg_min_nb, avg_max_nb, corr_min_nb, ncpu, filter_name):
+def extract(load_path, save_path, skip_flag, avg_min_nb, avg_max_nb, corr_min_nb, ncpu):
     """Extract traces (amplitude and phase rotation) from signals (IQs)."""
     # Sanity-check.
     load_path = path.abspath(load_path)
@@ -86,8 +85,6 @@ def extract(load_path, save_path, skip_flag, avg_min_nb, avg_max_nb, corr_min_nb
     if skip_flag is True:
         processing.config.num_traces_per_point_min = 0
         processing.config.min_correlation = 0
-    if filter_name != "":
-        processing.filter_name = filter_name
     # Processing execution.
     try:
         processor = processors.Processor(processing, helpers.ExecOnce(), stop=partial(loader.count), ncpu=ncpu).start()

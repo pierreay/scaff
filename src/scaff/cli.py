@@ -54,7 +54,11 @@ def copy(load_path, save_path):
 @click.argument("load_path", type=click.Path())
 @click.argument("save_path", type=click.Path())
 @click.option("--skip/--no-skip", "skip_flag", default=False, help="If set to True, disable any skip / filter configured for the extraction processing.")
-def extract(load_path, save_path, skip_flag):
+@click.option("--avg-min", "avg_min_nb", default=0, help="If set to a positive number, use this as minimum number of trace when averaging to validate trace extraction.")
+@click.option("--avg-max", "avg_max_nb", default=0, help="If set to a positive number, use this as maximum number of trace when averaging. If set to 1, disable averaging and perform an extraction only.")
+@click.option("--corr-min", "corr_min_nb", type=float, default=0, help="If set to a positive number, use this as minimum correlation to validate trace candidate.")
+@click.option("--cpu", "ncpu", default=-1, help="If set to a positive number, use this as number of processes for parallelization.")
+def extract(load_path, save_path, skip_flag, avg_min_nb, avg_max_nb, corr_min_nb, ncpu):
     """Extract traces (amplitude and phase rotation) from signals (IQs)."""
     # Sanity-check.
     load_path = path.abspath(load_path)
@@ -72,12 +76,18 @@ def extract(load_path, save_path, skip_flag):
     processing = processors.ProcessingExtract(load_path=load_path, save_path=save_path)
     processing.config = legacy.ExtractConf().load(config.APPCONF)
     # Configure according to CLI flags.
+    if avg_min_nb > 0:
+        processing.config.num_traces_per_point_min = avg_min_nb
+    if avg_max_nb > 0:
+        processing.config.num_traces_per_point = avg_max_nb
+    if corr_min_nb > 0:
+        processing.config.min_correlation = corr_min_nb
     if skip_flag is True:
         processing.config.num_traces_per_point_min = 0
         processing.config.min_correlation = 0
     # Processing execution.
     try:
-        processor = processors.Processor(processing, helpers.ExecOnce(), stop=partial(loader.count)).start()
+        processor = processors.Processor(processing, helpers.ExecOnce(), stop=partial(loader.count), ncpu=ncpu).start()
     except Exception as e:
         l.LOGGER.critical("Error during extraction processing: {}".format(e))
         raise e

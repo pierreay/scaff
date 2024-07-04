@@ -156,23 +156,27 @@ class ProcessingExtract(ProcessingInterface):
             average_file_name = path.join(self.save_path, "template.npy")
         else:
             average_file_name = None
-        # Apply extraction.
+        # Try one extraction on unfiltered amplitude.
         try:
             self.save_data_amp, self.template, res_amp = legacy.extract(
                 trace_amp, self.template, self.config, average_file_name=average_file_name,
             )
-            self.save_data_phr, self.template, res_phr = legacy.extract(
-                trace_phr, self.template, self.config, average_file_name=None, results_old=res_amp
-            )
-            # Plot results if asked.
-            if plot_flag is True:
-                legacy.plot_results(self.config, trace_amp, res_amp.trigger, res_amp.trigger_avg, res_amp.trace_starts, res_amp.traces,
-                                    target_path=None, plot=False, savePlot=False, title="Amplitude", final=False)
-                legacy.plot_results(self.config, trace_phr, res_phr.trigger, res_phr.trigger_avg, res_phr.trace_starts, res_phr.traces,
-                                    target_path=self.save_path, plot=plot_flag, savePlot=plot_flag, title="Phase rotation", final=True)
         except Exception as e:
             l.LOGGER.error("Error during extraction processing: {}".format(e))
             self.failed = True
+        # Re-execute this extraction with potentially filtered signals and with phase rotation.
+        self.save_data_amp, self.template, res_amp = legacy.extract(
+            trace_amp, self.template, self.config, average_file_name=average_file_name,
+        )
+        self.save_data_phr, self.template, res_phr = legacy.extract(
+            trace_phr, self.template, self.config, average_file_name=None, results_old=res_amp
+        )
+        # Plot results if asked.
+        if plot_flag is True:
+            legacy.plot_results(self.config, trace_amp, res_amp.trigger, res_amp.trigger_avg, res_amp.trace_starts, res_amp.traces,
+                                target_path=None, plot=False, savePlot=False, title="Amplitude", final=False)
+            legacy.plot_results(self.config, trace_phr, res_phr.trigger, res_phr.trigger_avg, res_phr.trace_starts, res_phr.traces,
+                                target_path=self.save_path, plot=plot_flag, savePlot=plot_flag, title="Phase rotation", final=True)
         return self.failed == False
 
     def on_error(self, plot_flag):

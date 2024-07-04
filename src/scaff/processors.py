@@ -317,7 +317,7 @@ class Processor():
             for _, __ in enumerate(ps):
                 l.LOGGER.debug("[{}] Wait result from queue...".format(type(self).__name__))
                 check, i_processed = q.get()
-                if check is True:
+                if check is False:
                     self.bad_list.append(i_processed)
 
         def _end(i_done, ps, pbar=None):

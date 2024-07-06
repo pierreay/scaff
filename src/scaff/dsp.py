@@ -5,6 +5,7 @@
 # External import.
 import numpy as np
 from scipy import signal
+from scipy.signal import butter, lfilter
 
 # * Classes
 
@@ -20,6 +21,28 @@ class LHPFilter():
     # Toggle switch.
     enabled = None
     
+    @staticmethod
+    def _butter_highpass_filter(sigin, cutoff, fs, order=5):
+        """Alternative implementation of the highpass filter."""
+        nyq = 0.5 * fs
+        normal_cutoff = cutoff / nyq
+        b, a = butter(order, normal_cutoff, btype="high", analog=False)
+        if type(sigin) == np.floating:
+            return lfilter(b, a, sigin)
+        elif type(singin) == np.complexing:
+            return lfilter(b, a, sigin.real) + 1j * lfilter(b, a, sigin.imag)
+
+    @staticmethod
+    def _butter_lowpass_filter(sigin, cutoff, fs, order=5):
+        """Alternative implementation of the lowpass filter."""
+        nyq = 0.5 * fs
+        normal_cutoff = cutoff / nyq
+        b, a = butter(order, normal_cutoff, btype="low", analog=False)
+        if type(sigin) == np.floating:
+            return lfilter(b, a, sigin)
+        elif type(singin) == np.complexing:
+            return lfilter(b, a, sigin.real) + 1j * lfilter(b, a, sigin.imag)
+
     def __init__(self, type, cutoff, order=1, enabled=True):
         """Configure a filter."""
         # Input check.

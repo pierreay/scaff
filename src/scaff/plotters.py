@@ -23,7 +23,13 @@ LATEX_FONT_ENABLED = False
 # * Functions
 
 def enable_latex_fonts():
-    """Use LaTeX for text rendering."""
+    """Use LaTeX for text rendering.
+
+    One can then use, for example, inside a Matplotlib title:
+
+    $\\Phi$
+
+    """
     global LATEX_FONT_ENABLED
     # Use pdflatex to generate fonts.
     plt.rcParams.update({

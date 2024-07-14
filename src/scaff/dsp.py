@@ -47,6 +47,7 @@ class LHPFilter():
         """Configure a filter."""
         # Input check.
         assert type in ["low", "high"], "Bad filter type!"
+        assert type(cutoff) == int, "Bad cutoff type!"
         # Get parameters.
         self.type = type
         self.cutoff = cutoff

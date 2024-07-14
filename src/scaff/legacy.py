@@ -1836,6 +1836,7 @@ def attack_recombined(data_path, num_traces, start_point, end_point, plot, save_
             # but using addition instead of multiplication.
             if corr_method == "add":
                 maxcpa["recombined"][bnum][kguess] = maxcpa["amp"][bnum][kguess] + maxcpa["phr"][bnum][kguess]
+            # TODO: Try with absolute values of maxcpa.
             elif corr_method == "mul":
                 maxcpa["recombined"][bnum][kguess] = maxcpa["amp"][bnum][kguess] * maxcpa["phr"][bnum][kguess]
             else:

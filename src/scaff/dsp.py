@@ -2,6 +2,8 @@
 
 # * Importation
 
+import builtins
+
 # External import.
 import numpy as np
 from scipy import signal
@@ -47,7 +49,7 @@ class LHPFilter():
         """Configure a filter."""
         # Input check.
         assert type in ["low", "high"], "Bad filter type!"
-        assert type(cutoff) == int, "Bad cutoff type!"
+        assert builtins.type(cutoff) == int or builtins.type(cutoff) == float, "Bad cutoff type!"
         # Get parameters.
         self.type = type
         self.cutoff = cutoff

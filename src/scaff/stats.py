@@ -59,20 +59,20 @@ class Profile():
         return self
 
     def plot(self, show=False, save=None, plt_param_dict={}):
-        # Plot the POIs.
+        # Plot the mean trace.
         plt.subplots_adjust(hspace = 1)
         plt.subplot(2, 1, 1)
+        plt.plot(self.MEAN_TRACE, **plt_param_dict)
+        plt.xlabel("Samples")
+        plt.ylabel("Mean trace")
+        # Plot the POIs.
+        plt.subplot(2, 1, 2)
         plt.xlabel("Samples")
         plt.ylabel("Correlation coeff. (r)")
         for i, snr in enumerate(self.RS):
             plt.plot(snr, label="subkey %d"%i, **plt_param_dict)
         for bnum in range(16):
             plt.plot(self.POIS[bnum], self.RS[bnum][self.POIS[bnum]], '.')
-        # Plot the mean trace.
-        plt.subplot(2, 1, 2)
-        plt.plot(self.MEAN_TRACE, **plt_param_dict)
-        plt.xlabel("Samples")
-        plt.ylabel("Mean trace")
         plt.tight_layout()
         if save is not None:
             figure = plt.gcf() # Get current figure

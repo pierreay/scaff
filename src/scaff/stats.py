@@ -72,7 +72,6 @@ class Profile():
             plt.plot(snr, label="subkey %d"%i, **plt_param_dict)
         for bnum in range(16):
             plt.plot(self.POIS[bnum], self.RS[bnum][self.POIS[bnum]], '.')
-        plt.tight_layout()
         if save is not None:
             figure = plt.gcf() # Get current figure
             figure.set_size_inches(32, 18) # Set figure's size manually to your full screen (32x18).

@@ -60,7 +60,6 @@ class Profile():
 
     def plot(self, show=False, save=None, plt_param_dict={}):
         # Plot the mean trace.
-        plt.subplots_adjust(hspace = 1)
         plt.subplot(2, 1, 1)
         plt.plot(self.MEAN_TRACE, **plt_param_dict)
         plt.xlabel("Samples")

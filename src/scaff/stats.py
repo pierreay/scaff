@@ -58,7 +58,7 @@ class Profile():
         self.MEAN_TRACE = np.load(path.join(load_dir, Profile.MEAN_TRACE_FN))
         return self
 
-    def plot(self, show=False, save=None, plt_param_dict={}):
+    def plot(self, show=False, save=None, clear=True, plt_param_dict={}):
         # Plot the mean trace.
         plt.subplot(2, 1, 1)
         plt.plot(self.MEAN_TRACE, **plt_param_dict)
@@ -78,3 +78,5 @@ class Profile():
             plt.savefig(save, bbox_inches='tight', dpi=100)
         if show is True:
             plt.show()
+        if clear is True:
+            plt.clf()

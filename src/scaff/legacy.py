@@ -591,6 +591,7 @@ class ExtractConf(config.ModuleConf):
         self.sampling_rate = self.get_dict(appconf)["sampling_rate"]
         self.num_traces_per_point = self.get_dict(appconf)["num_traces_per_point"]
         self.num_traces_per_point_min = self.get_dict(appconf)["num_traces_per_point_min"]
+        self.num_traces_per_point_max = self.get_dict(appconf)["num_traces_per_point_max"]
         self.min_correlation = self.get_dict(appconf)["min_correlation"]
         self.bandpass_lower = self.get_dict(appconf)["bandpass_lower"]
         self.bandpass_upper = self.get_dict(appconf)["bandpass_upper"]
@@ -651,6 +652,9 @@ def extract(trace, template, config, average_file_name=None, results_old=None):
             break
         # Don't try to extract out of the trace index.
         if stop > len(trace):
+            break
+        # Don't try to extract more traces than user wants.
+        if len(results_new.traces) >= config.num_traces_per_point_max:
             break
         # Compute current trace candidate.
         trace_candidate = trace[start:stop]

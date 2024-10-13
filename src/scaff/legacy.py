@@ -2809,6 +2809,9 @@ def cra(
             pge[bnum] = list(cparefs).index(knownkey[bnum])
             stored_cpas.append(maxcpa)
 
+        print_result(bestguess, knownkey, pge)
+        rank()
+
         return stored_cpas
 
     default_comp = comp

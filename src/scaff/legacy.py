@@ -2711,22 +2711,10 @@ def cra(
     norm2,
     comp,
 ):
-    attack_global_configure(
-        data_path,
-        num_traces,
-        start_point,
-        end_point,
-        plot,
-        save_images,
-        bruteforce,
-        norm,
-        norm2,
-        comp,
-    )
     global LOG_PROBA
     LOG_PROBA = [[0 for r in range(256)] for bnum in range(NUM_KEY_BYTES)]
 
-    def attack_comp(
+    def cra_comp(
         data_path,
         num_traces,
         start_point,
@@ -2738,6 +2726,18 @@ def cra(
         norm2,
         comp,
     ):
+        attack_global_configure(
+            data_path,
+            num_traces,
+            start_point,
+            end_point,
+            plot,
+            save_images,
+            bruteforce,
+            norm,
+            norm2,
+            comp,
+        )
         if PLOT:
             for t in TRACES:
                 plt.plot(t, linewidth=0.5)
@@ -2809,7 +2809,7 @@ def cra(
 
         return bestguess, knownkey, pge
 
-    bestguess, knownkey, pge = attack_comp(
+    bestguess, knownkey, pge = cra_comp(
         data_path,
         num_traces,
         start_point,

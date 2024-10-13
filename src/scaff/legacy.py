@@ -2766,10 +2766,11 @@ def cra(
         stored_cpas = []
 
         for bnum in range(NUM_KEY_BYTES):
+            l.LOGGER.info("Subkey %2d..." % (bnum))
             cpaoutput = [0] * 256
             maxcpa = [0] * 256
             for kguess in range(256):
-                print("Subkey %2d, hyp = %02x: " % (bnum, kguess), end=" ")
+                l.LOGGER.debug("Subkey %2d, hyp = %02x: " % (bnum, kguess))
 
                 # Initialize arrays and variables to zero
                 sumnum = np.zeros(numpoint)
@@ -2797,7 +2798,7 @@ def cra(
                 cpaoutput[kguess] = sumnum / np.sqrt(sumden1 * sumden2)
                 maxcpa[kguess] = max(abs(cpaoutput[kguess]))
                 LOG_PROBA[bnum][kguess] = maxcpa[kguess]
-                print(maxcpa[kguess])
+                l.LOGGER.debug("{}".format(maxcpa[kguess]))
 
             bestguess[bnum] = np.argmax(maxcpa)
 

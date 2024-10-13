@@ -2808,20 +2808,40 @@ def cra(
             pge[bnum] = list(cparefs).index(knownkey[bnum])
             stored_cpas.append(maxcpa)
 
-        return bestguess, knownkey, pge
+        return stored_cpas
 
-    bestguess, knownkey, pge = cra_comp(
-        data_path,
-        num_traces,
-        start_point,
-        end_point,
-        plot,
-        save_images,
-        bruteforce,
-        norm,
-        norm2,
-        comp,
-    )
+    default_comp = comp
+    maxcpa = {"amp": None, "phr": None, "recombined": None}
+
+    if comp == "amp" or comp == "phr":
+        maxcpa[comp] = cra_comp(data_path, num_traces, start_point,
+                                end_point, plot, save_images, bruteforce, norm, norm2, comp,
+                                )
+    elif comp == "recombined":
+        default_comp = "amp"
+        for comp in ["amp", "phr"]:
+            maxcpa[comp] = cra_comp(data_path, num_traces, start_point,
+                                    end_point, plot, save_images, bruteforce, norm, norm2, comp,
+                                    )
+
+    bestguess = [0] * 16
+    pge = [256] * 16
+    cparefs = [None] * NUM_KEY_BYTES
+    maxcpa["recombined"] = np.empty_like(maxcpa[default_comp])
+    for bnum in range(0, NUM_KEY_BYTES):
+        for kguess in range(256):
+            # NOTE: Combination of correlation coefficient from 2 channels
+            # (amplitude and phase rotation) inspired from POI recombination
+            # but using addition instead of multiplication.
+            # maxcpa["recombined"][bnum][kguess] = (
+            #     maxcpa["amp"][bnum][kguess] + maxcpa["phr"][bnum][kguess]
+            # )
+            maxcpa["recombined"][bnum][kguess] = maxcpa[default_comp][bnum][kguess]
+            LOG_PROBA[bnum][kguess] = np.copy(maxcpa["recombined"][bnum][kguess])
+        bestguess[bnum] = np.argmax(maxcpa["recombined"][bnum])
+        cparefs[bnum] = np.argsort(maxcpa["recombined"][bnum])[::-1]
+        pge[bnum] = list(cparefs[bnum]).index(KEYS[0][bnum])
+    knownkey = KEYS[0]
 
     print_result(bestguess, knownkey, pge)
     # Always rank if HEL is available.

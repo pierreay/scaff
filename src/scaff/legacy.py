@@ -2101,6 +2101,8 @@ def cra(data_path, num_traces, start_point, end_point, plot, save_images, brutef
         stored_cpas.append(maxcpa)
     
     print_result(bestguess, knownkey, pge)
+    # Always rank if HEL is available.
+    rank()
     # if BRUTEFORCE:
         # brute_force(stored_cpas, knownkey)
     if BRUTEFORCE and not (bestguess == KEYS[0]).all():

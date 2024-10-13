@@ -2706,7 +2706,7 @@ def cra(
     end_point,
     plot,
     save_images,
-    bruteforce,
+    bruteforce_flag,
     norm,
     norm2,
     comp,
@@ -2721,7 +2721,7 @@ def cra(
         end_point,
         plot,
         save_images,
-        bruteforce,
+        bruteforce_flag,
         norm,
         norm2,
         comp,
@@ -2733,7 +2733,7 @@ def cra(
             end_point,
             plot,
             save_images,
-            bruteforce,
+            bruteforce_flag,
             norm,
             norm2,
             comp,
@@ -2819,41 +2819,39 @@ def cra(
 
     if comp == "amp" or comp == "phr":
         maxcpa[comp] = cra_comp(data_path, num_traces, start_point,
-                                end_point, plot, save_images, bruteforce, norm, norm2, comp,
+                                end_point, plot, save_images, bruteforce_flag, norm, norm2, comp,
                                 )
     elif comp == "recombined":
         default_comp = "amp"
         for _comp in ["amp", "phr"]:
             maxcpa[_comp] = cra_comp(data_path, num_traces, start_point,
-                                    end_point, plot, save_images, bruteforce, norm, norm2, _comp,
+                                    end_point, plot, save_images, bruteforce_flag, norm, norm2, _comp,
                                     )
         l.LOGGER.info("Perform recombination...")
+        bestguess = [0] * 16
+        pge = [256] * 16
+        cparefs = [None] * NUM_KEY_BYTES
+        maxcpa["recombined"] = np.empty_like(maxcpa[default_comp])
+        for bnum in range(0, NUM_KEY_BYTES):
+            for kguess in range(256):
+                # NOTE: Combination of correlation coefficient from 2 channels
+                # (amplitude and phase rotation) inspired from POI recombination
+                # but using addition instead of multiplication.
+                if comp == "recombined":
+                    maxcpa["recombined"][bnum][kguess] = (
+                        maxcpa["amp"][bnum][kguess] + maxcpa["phr"][bnum][kguess]
+                    )
+                elif comp == "amp" or comp == "phr":
+                    maxcpa["recombined"][bnum][kguess] = maxcpa[default_comp][bnum][kguess]
+                LOG_PROBA[bnum][kguess] = np.copy(maxcpa["recombined"][bnum][kguess])
+            bestguess[bnum] = np.argmax(maxcpa["recombined"][bnum])
+            cparefs[bnum] = np.argsort(maxcpa["recombined"][bnum])[::-1]
+            pge[bnum] = list(cparefs[bnum]).index(KEYS[0][bnum])
+        knownkey = KEYS[0]
 
-    bestguess = [0] * 16
-    pge = [256] * 16
-    cparefs = [None] * NUM_KEY_BYTES
-    maxcpa["recombined"] = np.empty_like(maxcpa[default_comp])
-    for bnum in range(0, NUM_KEY_BYTES):
-        for kguess in range(256):
-            # NOTE: Combination of correlation coefficient from 2 channels
-            # (amplitude and phase rotation) inspired from POI recombination
-            # but using addition instead of multiplication.
-            if comp == "recombined":
-                maxcpa["recombined"][bnum][kguess] = (
-                    maxcpa["amp"][bnum][kguess] + maxcpa["phr"][bnum][kguess]
-                )
-            elif comp == "amp" or comp == "phr":
-                maxcpa["recombined"][bnum][kguess] = maxcpa[default_comp][bnum][kguess]
-            LOG_PROBA[bnum][kguess] = np.copy(maxcpa["recombined"][bnum][kguess])
-        bestguess[bnum] = np.argmax(maxcpa["recombined"][bnum])
-        cparefs[bnum] = np.argsort(maxcpa["recombined"][bnum])[::-1]
-        pge[bnum] = list(cparefs[bnum]).index(KEYS[0][bnum])
-    knownkey = KEYS[0]
+        print_result(bestguess, knownkey, pge)
+        # Always rank if HEL is available.
+        rank()
 
-    print_result(bestguess, knownkey, pge)
-    # Always rank if HEL is available.
-    rank()
-    # if BRUTEFORCE:
-    # brute_force(stored_cpas, knownkey)
-    if BRUTEFORCE and not (bestguess == KEYS[0]).all():
+    if bruteforce_flag:
         bruteforce(BIT_BOUND_END)

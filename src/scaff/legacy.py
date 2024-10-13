@@ -16,15 +16,8 @@ import statsmodels.api as sm
 from matplotlib import pyplot as plt
 from scipy import signal
 from scipy.signal import butter, lfilter
-from scipy.stats import (
-    entropy,
-    f,
-    linregress,
-    multivariate_normal,
-    norm,
-    pearsonr,
-    ttest_ind,
-)
+from scipy.stats import (entropy, f, linregress, multivariate_normal, norm,
+                         pearsonr, ttest_ind)
 from tqdm import tqdm
 
 from scaff import config, dsp
@@ -2733,74 +2726,101 @@ def cra(
     global LOG_PROBA
     LOG_PROBA = [[0 for r in range(256)] for bnum in range(NUM_KEY_BYTES)]
 
-    if PLOT:
-        for t in TRACES:
-            plt.plot(t, linewidth=0.5)
-        avg = np.average(TRACES, axis=0)
-        plt.plot(avg, "b", linewidth=2, label="average")
-        plt.xlabel("samples")
-        plt.ylabel("normalized\namplitude")
-        plt.legend()
-        plt.show()
+    def attack_comp(
+        data_path,
+        num_traces,
+        start_point,
+        end_point,
+        plot,
+        save_images,
+        bruteforce,
+        norm,
+        norm2,
+        comp,
+    ):
+        if PLOT:
+            for t in TRACES:
+                plt.plot(t, linewidth=0.5)
+            avg = np.average(TRACES, axis=0)
+            plt.plot(avg, "b", linewidth=2, label="average")
+            plt.xlabel("samples")
+            plt.ylabel("normalized\namplitude")
+            plt.legend()
+            plt.show()
 
-        # 4: Find sum of differences
-        tempSumDiff = np.zeros(np.shape(TRACES)[1])
-        for i in range(np.shape(TRACES)[0] - 1 - 5):
-            for j in range(i, i + 5):
-                tempSumDiff += np.abs(TRACES[i] - TRACES[j])
-        plt.plot(tempSumDiff)
-        plt.show()
+            # 4: Find sum of differences
+            tempSumDiff = np.zeros(np.shape(TRACES)[1])
+            for i in range(np.shape(TRACES)[0] - 1 - 5):
+                for j in range(i, i + 5):
+                    tempSumDiff += np.abs(TRACES[i] - TRACES[j])
+            plt.plot(tempSumDiff)
+            plt.show()
 
-    knownkey = KEYS[0]
-    numtraces = np.shape(TRACES)[0] - 1
-    numpoint = np.shape(TRACES)[1]
+        knownkey = KEYS[0]
+        numtraces = np.shape(TRACES)[0] - 1
+        numpoint = np.shape(TRACES)[1]
 
-    bestguess = [0] * 16
-    pge = [256] * 16
+        bestguess = [0] * 16
+        pge = [256] * 16
 
-    stored_cpas = []
+        stored_cpas = []
 
-    for bnum in range(NUM_KEY_BYTES):
-        cpaoutput = [0] * 256
-        maxcpa = [0] * 256
-        for kguess in range(256):
-            print("Subkey %2d, hyp = %02x: " % (bnum, kguess), end=" ")
+        for bnum in range(NUM_KEY_BYTES):
+            cpaoutput = [0] * 256
+            maxcpa = [0] * 256
+            for kguess in range(256):
+                print("Subkey %2d, hyp = %02x: " % (bnum, kguess), end=" ")
 
-            # Initialize arrays and variables to zero
-            sumnum = np.zeros(numpoint)
-            sumden1 = np.zeros(numpoint)
-            sumden2 = np.zeros(numpoint)
+                # Initialize arrays and variables to zero
+                sumnum = np.zeros(numpoint)
+                sumden1 = np.zeros(numpoint)
+                sumden2 = np.zeros(numpoint)
 
-            hyp = np.zeros(numtraces)
-            for tnum in range(numtraces):
-                hyp[tnum] = hw[intermediate(PLAINTEXTS[tnum][bnum], kguess)]
+                hyp = np.zeros(numtraces)
+                for tnum in range(numtraces):
+                    hyp[tnum] = hw[intermediate(PLAINTEXTS[tnum][bnum], kguess)]
 
-            # Mean of hypothesis
-            meanh = np.mean(hyp, dtype=np.float64)
+                # Mean of hypothesis
+                meanh = np.mean(hyp, dtype=np.float64)
 
-            # Mean of all points in trace
-            meant = np.mean(TRACES, axis=0, dtype=np.float64)
+                # Mean of all points in trace
+                meant = np.mean(TRACES, axis=0, dtype=np.float64)
 
-            for tnum in range(numtraces):
-                hdiff = hyp[tnum] - meanh
-                tdiff = TRACES[tnum, :] - meant
+                for tnum in range(numtraces):
+                    hdiff = hyp[tnum] - meanh
+                    tdiff = TRACES[tnum, :] - meant
 
-                sumnum = sumnum + (hdiff * tdiff)
-                sumden1 = sumden1 + hdiff * hdiff
-                sumden2 = sumden2 + tdiff * tdiff
+                    sumnum = sumnum + (hdiff * tdiff)
+                    sumden1 = sumden1 + hdiff * hdiff
+                    sumden2 = sumden2 + tdiff * tdiff
 
-            cpaoutput[kguess] = sumnum / np.sqrt(sumden1 * sumden2)
-            maxcpa[kguess] = max(abs(cpaoutput[kguess]))
-            LOG_PROBA[bnum][kguess] = maxcpa[kguess]
-            print(maxcpa[kguess])
+                cpaoutput[kguess] = sumnum / np.sqrt(sumden1 * sumden2)
+                maxcpa[kguess] = max(abs(cpaoutput[kguess]))
+                LOG_PROBA[bnum][kguess] = maxcpa[kguess]
+                print(maxcpa[kguess])
 
-        bestguess[bnum] = np.argmax(maxcpa)
+            bestguess[bnum] = np.argmax(maxcpa)
 
-        cparefs = np.argsort(maxcpa)[::-1]
+            cparefs = np.argsort(maxcpa)[::-1]
 
-        # Find PGE
-        pge[bnum] = list(cparefs).index(knownkey[bnum])
-        stored_cpas.append(maxcpa)
+            # Find PGE
+            pge[bnum] = list(cparefs).index(knownkey[bnum])
+            stored_cpas.append(maxcpa)
+
+        return bestguess, knownkey, pge
+
+    bestguess, knownkey, pge = attack_comp(
+        data_path,
+        num_traces,
+        start_point,
+        end_point,
+        plot,
+        save_images,
+        bruteforce,
+        norm,
+        norm2,
+        comp,
+    )
 
     print_result(bestguess, knownkey, pge)
     # Always rank if HEL is available.

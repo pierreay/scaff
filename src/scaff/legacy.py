@@ -2738,6 +2738,7 @@ def cra(
             norm2,
             comp,
         )
+        l.LOGGER.info("Attack using: {}".format(comp))
         if PLOT:
             for t in TRACES:
                 plt.plot(t, linewidth=0.5)
@@ -2819,10 +2820,11 @@ def cra(
                                 )
     elif comp == "recombined":
         default_comp = "amp"
-        for comp in ["amp", "phr"]:
-            maxcpa[comp] = cra_comp(data_path, num_traces, start_point,
-                                    end_point, plot, save_images, bruteforce, norm, norm2, comp,
+        for _comp in ["amp", "phr"]:
+            maxcpa[_comp] = cra_comp(data_path, num_traces, start_point,
+                                    end_point, plot, save_images, bruteforce, norm, norm2, _comp,
                                     )
+        l.LOGGER.info("Perform recombination...")
 
     bestguess = [0] * 16
     pge = [256] * 16
@@ -2833,10 +2835,12 @@ def cra(
             # NOTE: Combination of correlation coefficient from 2 channels
             # (amplitude and phase rotation) inspired from POI recombination
             # but using addition instead of multiplication.
-            # maxcpa["recombined"][bnum][kguess] = (
-            #     maxcpa["amp"][bnum][kguess] + maxcpa["phr"][bnum][kguess]
-            # )
-            maxcpa["recombined"][bnum][kguess] = maxcpa[default_comp][bnum][kguess]
+            if comp == "recombined":
+                maxcpa["recombined"][bnum][kguess] = (
+                    maxcpa["amp"][bnum][kguess] + maxcpa["phr"][bnum][kguess]
+                )
+            elif comp == "amp" or comp == "phr":
+                maxcpa["recombined"][bnum][kguess] = maxcpa[default_comp][bnum][kguess]
             LOG_PROBA[bnum][kguess] = np.copy(maxcpa["recombined"][bnum][kguess])
         bestguess[bnum] = np.argmax(maxcpa["recombined"][bnum])
         cparefs[bnum] = np.argsort(maxcpa["recombined"][bnum])[::-1]

@@ -7,7 +7,7 @@ Started from a dirty research project, its usage is currently considered as work
 
 **References**
 
-- **[phase_data](https://github.com/pierreay/phase_data.git)**: PhaseSCA research project leveraging this tool.
+- **[phasesca](https://github.com/pierreay/phasesca.git)**: PhaseSCA research project leveraging this tool.
 - **[screaming_channels_ble](https://github.com/pierreay/screaming_channels_ble)**: BlueScream research project from which this tool is born.
 
 # Installation

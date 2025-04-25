@@ -19,4 +19,4 @@ git clone https://github.com/pierreay/scaff.git
 cd scaff && pip install --user .
 ```
 
-Optionally, install [Histogram Enumeration Library (HEL)](https://github.com/pierreay/python_hel) for key estimation and enumeration.
+Optionally, install [Histogram Enumeration Library (HEL)](https://github.com/giocamurati/python_hel) for key estimation and enumeration.

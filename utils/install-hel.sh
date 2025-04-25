@@ -5,7 +5,7 @@
 # Install the dependencies.
 sudo apt-get install -yq libntl-dev libgmp-dev
 # Clone the library.
-git clone https://github.com/pierreay/python_hel.git
+git clone https://github.com/giocamurati/python_hel.git
 # Compile and install the C++ library using Intel's AES-NI instructions.
 cd python_hel/hel_wrapper
 make AES_TYPE=aes_ni
